@@ -90,7 +90,7 @@ export default function App() {
     async function loadFromSupabase() {
       try {
         const dbItems = await fetchStockItemsFromDB();
-        if (dbItems !== null) {
+        if (dbItems !== null && dbItems.length > 0) {
           const mapped = dbItems.map((item: any) => ({
             id: item.id,
             partNumber: item.part_number,
@@ -106,8 +106,21 @@ export default function App() {
             supplier: item.supplier,
             lastUpdated: item.last_updated,
             notes: item.notes,
-          }));
+            createdAt: item.created_at,
+          })).sort((a: any, b: any) => {
+            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return timeA - timeB;
+          });
           setStockItems(mapped);
+          try {
+            localStorage.setItem(STOCK_STORAGE_KEY, JSON.stringify(mapped));
+          } catch {}
+        } else if (dbItems !== null && dbItems.length === 0) {
+          setStockItems([]);
+          try {
+            localStorage.setItem(STOCK_STORAGE_KEY, JSON.stringify([]));
+          } catch {}
         }
 
         const dbTx = await fetchTransactionsFromDB();
