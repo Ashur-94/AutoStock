@@ -21,6 +21,7 @@ import { InvoiceUploadModal } from './components/InvoiceUploadModal';
 import { EditItemModal } from './components/EditItemModal';
 import { ReorderListModal } from './components/ReorderListModal';
 import { TransactionHistoryModal } from './components/TransactionHistoryModal';
+import { ItemDetailModal } from './components/ItemDetailModal';
 import { CounterSaleBar } from './components/CounterSaleBar';
 import { 
   playSaleSound, 
@@ -61,24 +62,16 @@ export default function App() {
   // 2. Core Stock State
   const [stockItems, setStockItems] = useState<StockItem[]>(() => {
     try {
-      const saved = localStorage.getItem(STOCK_STORAGE_KEY) || localStorage.getItem('autostock_inventory_data_v2_ar') || localStorage.getItem('autostock_inventory_data_v1');
+      const saved = localStorage.getItem(STOCK_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((item: any, idx: number) => {
-            const defaultMatch = INITIAL_STOCK_ITEMS.find((d) => d.partNumber === item.partNumber);
-            const fallbackPreset = DEFAULT_PART_PRESET_IMAGES[idx % DEFAULT_PART_PRESET_IMAGES.length]?.url;
-            return {
-              ...item,
-              category: item.category || 'زيوت وسوائل',
-              imageUrl: item.imageUrl || defaultMatch?.imageUrl || fallbackPreset,
-            };
-          });
+        if (Array.isArray(parsed)) {
+          return parsed;
         }
       }
-      return INITIAL_STOCK_ITEMS;
+      return [];
     } catch {
-      return INITIAL_STOCK_ITEMS;
+      return [];
     }
   });
 
@@ -97,7 +90,7 @@ export default function App() {
     async function loadFromSupabase() {
       try {
         const dbItems = await fetchStockItemsFromDB();
-        if (dbItems && dbItems.length > 0) {
+        if (dbItems !== null) {
           const mapped = dbItems.map((item: any) => ({
             id: item.id,
             partNumber: item.part_number,
@@ -118,7 +111,7 @@ export default function App() {
         }
 
         const dbTx = await fetchTransactionsFromDB();
-        if (dbTx && dbTx.length > 0) {
+        if (dbTx !== null) {
           const mappedTx = dbTx.map((tx: any) => ({
             id: tx.id,
             itemId: tx.item_id,
@@ -161,6 +154,8 @@ export default function App() {
   const [isReorderModalOpen, setIsReorderModalOpen] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<StockItem | null>(null);
+  const [selectedItemForDetails, setSelectedItemForDetails] = useState<StockItem | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   // 5. Toast Notification State
   const [toast, setToast] = useState<{ title: string; desc: string; type: 'success' | 'alert' | 'info' } | null>(null);
@@ -689,6 +684,10 @@ export default function App() {
                   setItemToEdit(itemToEdit);
                   setIsAddItemModalOpen(true);
                 }}
+                onCardClick={(clickedItem) => {
+                  setSelectedItemForDetails(clickedItem);
+                  setIsDetailModalOpen(true);
+                }}
                 quickSaleMode={quickSaleMode}
               />
             ))}
@@ -709,6 +708,23 @@ export default function App() {
       )}
 
       {/* 6. Modals */}
+      {/* Item Detail Popup Modal */}
+      <ItemDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedItemForDetails(null);
+        }}
+        item={selectedItemForDetails}
+        onIncrement={handleIncrement}
+        onDecrement={handleDecrement}
+        onSetExactQuantity={handleSetExactQuantity}
+        onEdit={(itemToEdit) => {
+          setIsDetailModalOpen(false);
+          setItemToEdit(itemToEdit);
+          setIsAddItemModalOpen(true);
+        }}
+      />
       {/* AI Invoice Photo Upload Modal */}
       <InvoiceUploadModal
         isOpen={isInvoiceModalOpen}

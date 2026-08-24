@@ -17,6 +17,7 @@ interface StockCardProps {
   onDecrement: (item: StockItem, delta?: number) => void;
   onSetExactQuantity: (item: StockItem, newQty: number) => void;
   onEdit: (item: StockItem) => void;
+  onCardClick?: (item: StockItem) => void;
   quickSaleMode?: boolean;
 }
 
@@ -26,6 +27,7 @@ export const StockCard: React.FC<StockCardProps> = ({
   onDecrement,
   onSetExactQuantity,
   onEdit,
+  onCardClick,
   quickSaleMode = false,
 }) => {
   const [isEditingQty, setIsEditingQty] = useState(false);
@@ -63,7 +65,21 @@ export const StockCard: React.FC<StockCardProps> = ({
   return (
     <div
       id={`stock-card-${item.id}`}
-      className={`group relative rounded-2xl bg-white border transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden flex flex-col justify-between ${
+      onClick={(e) => {
+        // If clicking interactive buttons or inputs, don't trigger card click
+        const target = e.target as HTMLElement;
+        if (
+          target.closest('button') ||
+          target.closest('input') ||
+          isEditingQty
+        ) {
+          return;
+        }
+        if (onCardClick) {
+          onCardClick(item);
+        }
+      }}
+      className={`group relative rounded-2xl bg-white border transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden flex flex-col justify-between cursor-pointer ${
         isOutOfStock
           ? 'border-rose-400 ring-1 ring-rose-300 shadow-rose-50'
           : isLowStock
@@ -99,9 +115,6 @@ export const StockCard: React.FC<StockCardProps> = ({
             <span className="text-[11px] text-slate-500 font-medium">{item.category}</span>
           </div>
         )}
-
-        {/* Gradient Overlay for Text Legibility */}
-        <div className="absolute inset-0 bg-gradient-to-t from-white via-white/40 to-transparent pointer-events-none" />
 
         {/* Floating Top Badges (Category + Stock State + Edit Button) */}
         <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between gap-1.5 pointer-events-auto">
