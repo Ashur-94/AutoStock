@@ -4,7 +4,8 @@ import {
   CheckCircle2, 
   Package, 
   Info,
-  Camera
+  Camera,
+  PackagePlus
 } from 'lucide-react';
 import { StockItem, StockTransaction, ParsedInvoiceResult } from './types';
 import { 
@@ -625,6 +626,16 @@ export default function App() {
 
           {/* Quick Filter Status pills */}
           <div className="flex items-center gap-2 text-xs">
+            <button
+              onClick={() => {
+                setItemToEdit(null);
+                setIsAddItemModalOpen(true);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+            >
+              <PackagePlus className="w-3.5 h-3.5" />
+              <span>إضافة صنف جديد</span>
+            </button>
             <button
               onClick={() => setIsInvoiceModalOpen(true)}
               className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
