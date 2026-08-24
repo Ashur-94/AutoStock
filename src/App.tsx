@@ -5,7 +5,8 @@ import {
   Package, 
   Info,
   Camera,
-  PackagePlus
+  PackagePlus,
+  Edit3
 } from 'lucide-react';
 import { StockItem, StockTransaction, ParsedInvoiceResult } from './types';
 import { 
@@ -22,6 +23,7 @@ import { EditItemModal } from './components/EditItemModal';
 import { ReorderListModal } from './components/ReorderListModal';
 import { TransactionHistoryModal } from './components/TransactionHistoryModal';
 import { ItemDetailModal } from './components/ItemDetailModal';
+import { CategoriesModal } from './components/CategoriesModal';
 import { CounterSaleBar } from './components/CounterSaleBar';
 import { 
   playSaleSound, 
@@ -33,6 +35,7 @@ import {
   fetchStockItemsFromDB,
   saveStockItemToDB,
   deleteStockItemFromDB,
+  deleteAllStockItemsFromDB,
   fetchTransactionsFromDB,
   saveTransactionToDB
 } from './utils/supabaseStorage';
@@ -169,6 +172,7 @@ export default function App() {
   const [itemToEdit, setItemToEdit] = useState<StockItem | null>(null);
   const [selectedItemForDetails, setSelectedItemForDetails] = useState<StockItem | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
 
   // 5. Toast Notification State
   const [toast, setToast] = useState<{ title: string; desc: string; type: 'success' | 'alert' | 'info' } | null>(null);
@@ -228,6 +232,34 @@ export default function App() {
       setCategories((prev) => [...prev, trimmed]);
       showToast('تمت إضافة تصنيف جديد', `تمت إضافة التصنيف "${trimmed}" بنجاح إلى أقسام المخزون.`, 'success');
     }
+  };
+
+  // Rename category
+  const handleRenameCategory = (oldCat: string, newCat: string) => {
+    const trimmed = newCat.trim();
+    if (!trimmed || trimmed === oldCat) return;
+    setCategories((prev) => prev.map((c) => (c === oldCat ? trimmed : c)));
+    setStockItems((prev) =>
+      prev.map((item) => (item.category === oldCat ? { ...item, category: trimmed } : item))
+    );
+    if (activeFilter === oldCat) {
+      setActiveFilter(trimmed);
+    }
+    showToast('تم تحديث القسم', `تم إعادة تسمية "${oldCat}" إلى "${trimmed}".`, 'success');
+  };
+
+  // Delete category
+  const handleDeleteCategory = (catToDelete: string) => {
+    if (categories.length <= 1) return;
+    const fallbackCategory = categories.find((c) => c !== catToDelete) || 'عام';
+    setCategories((prev) => prev.filter((c) => c !== catToDelete));
+    setStockItems((prev) =>
+      prev.map((item) => (item.category === catToDelete ? { ...item, category: fallbackCategory } : item))
+    );
+    if (activeFilter === catToDelete) {
+      setActiveFilter('ALL');
+    }
+    showToast('تم حذف القسم', `تمت إزالة القسم "${catToDelete}" ونقل قطعه إلى "${fallbackCategory}".`, 'info');
   };
 
   // Derived low stock items
@@ -473,11 +505,12 @@ export default function App() {
   };
 
   const confirmResetData = () => {
-    setStockItems(INITIAL_STOCK_ITEMS);
+    setStockItems([]);
     setCategories(ARABIC_PART_CATEGORIES);
     setTransactions([]);
+    deleteAllStockItemsFromDB();
     setIsResetModalOpen(false);
-    showToast('تمت إعادة الضبط', 'تمت استعادة مخزون الورشة الافتراضي بنجاح.', 'info');
+    showToast('تمت إعادة الضبط', 'تم مسح كافة البيانات من المخزون.', 'info');
   };
 
   // Overall inventory metrics
@@ -626,8 +659,18 @@ export default function App() {
                 : activeFilter === 'LOW_STOCK'
                 ? 'تنبيهات انخفاض ونفاد المخزون'
                 : `قطع ${activeFilter}`}
-              <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-800 border border-slate-300">
-                {filteredStockItems.length} صنف
+              <span className="inline-flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-800 border border-slate-300">
+                  {filteredStockItems.length} صنف
+                </span>
+                <button
+                  onClick={() => setIsCategoriesModalOpen(true)}
+                  className="px-2 py-0.5 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-sm"
+                  title="تعديل الأقسام والتصنيفات"
+                >
+                  <Edit3 className="w-3 h-3" />
+                  <span>تعديل الأقسام</span>
+                </button>
               </span>
             </h2>
           </div>
@@ -758,6 +801,16 @@ export default function App() {
         onDelete={handleDeleteItem}
         categories={categories}
         onAddCategory={handleAddCategory}
+      />
+
+      {/* Categories Management Modal */}
+      <CategoriesModal
+        isOpen={isCategoriesModalOpen}
+        onClose={() => setIsCategoriesModalOpen(false)}
+        categories={categories}
+        onAddCategory={handleAddCategory}
+        onRenameCategory={handleRenameCategory}
+        onDeleteCategory={handleDeleteCategory}
       />
 
       {/* Low-Stock Supplier Reorder Sheet Modal */}

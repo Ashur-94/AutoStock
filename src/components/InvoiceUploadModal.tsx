@@ -44,6 +44,7 @@ export const InvoiceUploadModal: React.FC<InvoiceUploadModalProps> = ({
 
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -452,14 +453,32 @@ export const InvoiceUploadModal: React.FC<InvoiceUploadModalProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-center gap-3">
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+
+              <div className="flex flex-wrap items-center justify-center gap-3">
                 <button
                   id="snap-camera-photo-btn"
                   onClick={captureCameraPhoto}
                   className="px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-md cursor-pointer"
                 >
                   <Camera className="w-5 h-5" />
-                  <span>التقاط الصورة ومعاينتها</span>
+                  <span>التقاط الصورة مباشرة</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="px-5 py-3 rounded-2xl bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold text-sm flex items-center gap-2 shadow-sm cursor-pointer"
+                >
+                  <Upload className="w-4 h-4 text-amber-600" />
+                  <span>فتح كاميرا الجهاز الخارجية / الهاتف</span>
                 </button>
               </div>
             </div>

@@ -70,6 +70,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
   const [isUploadingToSupabase, setIsUploadingToSupabase] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (itemToEdit) {
@@ -272,14 +273,31 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                     accept="image/*"
                     className="hidden"
                   />
+                  <input
+                    type="file"
+                    ref={cameraInputRef}
+                    onChange={handleFileUpload}
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                  />
                   
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     className="px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
-                    <Camera className="w-3.5 h-3.5" />
-                    <span>رفع صورة / كاميرا</span>
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>إضافة صورة</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Camera className="w-3.5 h-3.5 text-amber-600" />
+                    <span>فتح الكاميرا</span>
                   </button>
 
                   <button
