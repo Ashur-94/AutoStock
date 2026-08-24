@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { StockItem, StockTransaction, ParsedInvoiceResult } from './types';
 import { 
-  INITIAL_STOCK_ITEMS, 
   ARABIC_PART_CATEGORIES, 
   DEFAULT_PART_PRESET_IMAGES,
   normalizeCategory 
@@ -63,20 +62,7 @@ export default function App() {
   });
 
   // 2. Core Stock State
-  const [stockItems, setStockItems] = useState<StockItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(STOCK_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed;
-        }
-      }
-      return [];
-    } catch {
-      return [];
-    }
-  });
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
 
   // 2. Transaction Activity Logs
   const [transactions, setTransactions] = useState<StockTransaction[]>(() => {
@@ -505,14 +491,17 @@ export default function App() {
   };
 
   const confirmResetData = () => {
-    setStockItems([]);
-    setCategories(ARABIC_PART_CATEGORIES);
-    setTransactions([]);
-    deleteAllStockItemsFromDB();
-    setIsResetModalOpen(false);
-    showToast('تمت إعادة الضبط', 'تم مسح كافة البيانات من المخزون.', 'info');
+    handleForceClearAll();
   };
 
+  const handleForceClearAll = async () => {
+    await deleteAllStockItemsFromDB();
+    setStockItems([]);
+    setTransactions([]);
+    localStorage.clear();
+    window.location.reload();
+  };
+  
   // Overall inventory metrics
   const totalUnitsInStock = useMemo(() => {
     return stockItems.reduce((acc, item) => acc + item.quantity, 0);

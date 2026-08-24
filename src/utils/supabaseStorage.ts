@@ -170,7 +170,12 @@ export async function deleteStockItemFromDB(id: string): Promise<void> {
 export async function deleteAllStockItemsFromDB(): Promise<void> {
   try {
     const supabase = getSupabaseClient();
-    await supabase.from('stock_items').delete().neq('id', 'non-existent-id-to-delete-all');
+    // Delete all records by not providing a filter, or a filter that matches all.
+    // .neq('id', '!!') should match all records if '!!' is not an ID.
+    const { error } = await supabase.from('stock_items').delete().neq('id', '!!-invalid-!!');
+    if (error) {
+      console.error('Error in deleteAllStockItemsFromDB:', error);
+    }
   } catch (err) {
     console.warn('Supabase DB delete all items error:', err);
   }
