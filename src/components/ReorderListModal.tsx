@@ -62,36 +62,67 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
       textLines.push(``);
     });
 
-    navigator.clipboard.writeText(textLines.join('\n'));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    const fullText = textLines.join('\n');
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(fullText)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2500);
+        })
+        .catch(() => {
+          // Fallback to legacy execCommand
+          fallbackCopyText(fullText);
+        });
+    } else {
+      fallbackCopyText(fullText);
+    }
+  };
+
+  const fallbackCopyText = (text: string) => {
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      textArea.style.left = '-9999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // Ignore copy error
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-slate-950/80 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200" dir="rtl">
-      <div className="relative w-full max-w-[calc(100vw-1rem)] sm:max-w-3xl bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-slate-900/40 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200" dir="rtl">
+      <div className="relative w-full max-w-[calc(100vw-1rem)] sm:max-w-3xl bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-white border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-rose-100 border border-rose-300 flex items-center justify-center text-rose-700 shrink-0">
               <ClipboardList className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0 text-right">
-              <h2 className="text-sm sm:text-lg font-bold text-white flex items-center gap-1.5 sm:gap-2">
+              <h2 className="text-sm sm:text-lg font-bold text-slate-900 flex items-center gap-1.5 sm:gap-2">
                 قائمة طلبات التوريد وإعادة الطلب
-                <span className="text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 shrink-0">
+                <span className="text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300 shrink-0">
                   {allAlertItems.length} صنف دون الحد
                 </span>
               </h2>
-              <p className="text-[11px] sm:text-xs text-slate-400 truncate">
+              <p className="text-[11px] sm:text-xs text-slate-500 truncate">
                 أوامر الشراء مجمعة حسب الموردين لإعادة ملء مخزون الورشة
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0 cursor-pointer"
           >
             <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
@@ -101,29 +132,29 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
         <div className="p-3.5 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1 text-right">
           
           {/* Summary Strip */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 w-full min-w-0">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 w-full min-w-0">
             <div className="grid grid-cols-3 gap-2 text-xs w-full sm:w-auto">
               <div>
                 <span className="text-slate-500 block text-[9px] sm:text-[10px] font-bold">نفد تماماً (0)</span>
-                <span className="font-mono font-extrabold text-xs sm:text-sm text-rose-400">{outOfStockItems.length} صنف</span>
+                <span className="font-mono font-extrabold text-xs sm:text-sm text-rose-600">{outOfStockItems.length} صنف</span>
               </div>
-              <div className="border-r border-slate-800 pr-2">
+              <div className="border-r border-slate-200 pr-2">
                 <span className="text-slate-500 block text-[9px] sm:text-[10px] font-bold">مخزون منخفض</span>
-                <span className="font-mono font-extrabold text-xs sm:text-sm text-amber-400">{lowStockItems.length} صنف</span>
+                <span className="font-mono font-extrabold text-xs sm:text-sm text-amber-600">{lowStockItems.length} صنف</span>
               </div>
-              <div className="border-r border-slate-800 pr-2">
+              <div className="border-r border-slate-200 pr-2">
                 <span className="text-slate-500 block text-[9px] sm:text-[10px] font-bold">القيمة التقديرية</span>
-                <span className="font-mono font-extrabold text-xs sm:text-sm text-emerald-400">${totalEstimatedReorderCost.toFixed(2)}</span>
+                <span className="font-mono font-extrabold text-xs sm:text-sm text-emerald-600">${totalEstimatedReorderCost.toFixed(2)}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-2 sm:pt-0 border-t border-slate-800 sm:border-0">
+            <div className="flex items-center gap-2 pt-2 sm:pt-0 border-t border-slate-200 sm:border-0">
               <button
                 id="copy-reorder-po-btn"
                 onClick={handleCopyToClipboard}
-                className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-amber-700 border border-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <Copy className="w-3.5 h-3.5 shrink-0" />}
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> : <Copy className="w-3.5 h-3.5 shrink-0" />}
                 <span>{copied ? 'تم نسخ الطلب إلى الحافظة!' : 'نسخ نص طلب التوريد للمورد'}</span>
               </button>
             </div>
@@ -131,12 +162,12 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
 
           {/* Supplier Groups */}
           {allAlertItems.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-3">
+            <div className="text-center py-12 text-slate-500">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto mb-3">
                 <Check className="w-6 h-6" />
               </div>
-              <h3 className="font-bold text-slate-200">جميع القطع والمستلزمات متوفرة بوفرة!</h3>
-              <p className="text-xs mt-1">لا يوجد أي صنف دون الحد الأدنى للتنبيه حالياً.</p>
+              <h3 className="font-bold text-slate-800">جميع القطع والمستلزمات متوفرة بوفرة!</h3>
+              <p className="text-xs mt-1 text-slate-500">لا يوجد أي صنف دون الحد الأدنى للتنبيه حالياً.</p>
             </div>
           ) : (
             <div className="space-y-5">
@@ -147,46 +178,46 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
                 }, 0);
 
                 return (
-                  <div key={supplier} className="rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden">
+                  <div key={supplier} className="rounded-2xl bg-slate-50 border border-slate-200 overflow-hidden shadow-sm">
                     {/* Supplier Subheader */}
-                    <div className="px-4 py-2.5 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2 font-bold text-slate-200">
-                        <Building2 className="w-4 h-4 text-amber-400" />
+                    <div className="px-4 py-2.5 bg-white border-b border-slate-200 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 font-bold text-slate-800">
+                        <Building2 className="w-4 h-4 text-amber-600" />
                         <span>{supplier}</span>
-                        <span className="text-[11px] font-normal text-slate-400">({items.length} قطع)</span>
+                        <span className="text-[11px] font-normal text-slate-500">({items.length} قطع)</span>
                       </div>
-                      <span className="font-mono text-slate-300">
-                        التقدير: <span className="text-emerald-400 font-bold">${supplierSubtotal.toFixed(2)}</span>
+                      <span className="font-mono text-slate-700">
+                        التقدير: <span className="text-emerald-600 font-bold">${supplierSubtotal.toFixed(2)}</span>
                       </span>
                     </div>
 
                     {/* Items table */}
-                    <div className="divide-y divide-slate-800/60 text-xs">
+                    <div className="divide-y divide-slate-200 text-xs">
                       {items.map((item) => {
                         const isZero = item.quantity === 0;
                         const suggestedReorderQty = Math.max(1, (item.minStockThreshold * 2) - item.quantity);
 
                         return (
-                          <div key={item.id} className="p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-slate-900/40 transition-colors">
+                          <div key={item.id} className="p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-slate-100/60 transition-colors">
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
-                                <span className="font-mono font-bold text-[11px] px-1.5 py-0.5 rounded bg-slate-900 text-amber-300 border border-slate-800">
+                                <span className="font-mono font-bold text-[11px] px-1.5 py-0.5 rounded bg-white text-amber-700 border border-slate-300">
                                   {item.partNumber}
                                 </span>
                                 {isZero ? (
-                                  <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                                  <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-rose-100 text-rose-700 border border-rose-300">
                                     نفد (0 متبقي)
                                   </span>
                                 ) : (
-                                  <span className="text-[10px] font-semibold px-2 py-0.2 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                  <span className="text-[10px] font-semibold px-2 py-0.2 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
                                     متبقي {item.quantity} (الحد: {item.minStockThreshold})
                                   </span>
                                 )}
                               </div>
-                              <div className="font-bold text-slate-200 mt-1">
+                              <div className="font-bold text-slate-900 mt-1">
                                 {item.name}
                               </div>
-                              <div className="text-[11px] text-slate-400 mt-0.5">
+                              <div className="text-[11px] text-slate-500 mt-0.5">
                                 المكان: {item.location} • سعر التكلفة: ${item.costPrice.toFixed(2)}
                               </div>
                             </div>
@@ -194,10 +225,10 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
                             {/* Reorder Action */}
                             <div className="flex items-center gap-3 self-end sm:self-center">
                               <div className="text-left" dir="ltr">
-                                <span className="text-[10px] text-slate-500 font-bold block text-right">
+                                <span className="text-[10px] text-slate-400 font-bold block text-right">
                                   الطلب المقترح
                                 </span>
-                                <span className="font-mono font-bold text-amber-400 text-sm">
+                                <span className="font-mono font-bold text-amber-600 text-sm">
                                   +{suggestedReorderQty} {item.unit}
                                 </span>
                               </div>
@@ -205,7 +236,7 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
                               <button
                                 id={`quick-restock-btn-${item.id}`}
                                 onClick={() => onRestockItem(item, suggestedReorderQty)}
-                                className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-slate-950 font-bold text-xs border border-emerald-500/40 flex items-center gap-1.5 transition-all cursor-pointer"
+                                className="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white font-bold text-xs border border-emerald-300 flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
                                 title={`تأكيد استلام +${suggestedReorderQty} قطعة مباشرة`}
                               >
                                 <PackagePlus className="w-3.5 h-3.5" />
@@ -225,11 +256,11 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+        <div className="px-6 py-4 bg-white border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
           <span>نصيحة: عند وصول الشحنة الفعلية، يكفيك تصوير الفاتورة الورقية وسيقوم النظام بتحديث جميع الكميات تلقائياً!</span>
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold transition-colors cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition-colors cursor-pointer"
           >
             إغلاق
           </button>

@@ -1,9 +1,10 @@
 import React from 'react';
 import { 
   Wrench, 
-  Plus, 
   AlertTriangle, 
-  Search
+  Search,
+  ClipboardList,
+  ShoppingBag
 } from 'lucide-react';
 import { StockItem } from '../types';
 import { ARABIC_PART_CATEGORIES } from '../data/defaultStock';
@@ -44,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectFilter,
   searchQuery,
   onSearchChange,
-  quickSaleMode,
+  quickSaleMode = false,
   onToggleQuickSale,
 }) => {
   const totalItemsCount = stockItems.reduce((acc, item) => acc + item.quantity, 0);
@@ -52,43 +53,80 @@ export const Header: React.FC<HeaderProps> = ({
   const totalAlertCount = lowStockCount + outOfStockCount;
 
   return (
-    <header className="sticky top-0 z-30 bg-slate-900 border-b border-slate-800 text-white shadow-xl w-full">
+    <header className="sticky top-0 z-30 bg-white border-b border-slate-200 text-slate-900 shadow-sm w-full">
       {/* Top Main Navigation Bar */}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-        <div className="flex items-center justify-between min-h-[3.25rem] sm:min-h-[3.75rem] py-1.5 sm:py-2 gap-1 sm:gap-3">
+        <div className="flex items-center justify-between min-h-[3.5rem] py-2 gap-2 flex-wrap sm:flex-nowrap">
           
           {/* Logo & Shop Identity */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 min-w-0">
-            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center shadow-md shadow-amber-500/20 text-slate-950 shrink-0">
-              <Wrench className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 stroke-[2.5]" />
+          <div className="flex items-center gap-2 shrink-0 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center shadow-md shadow-amber-500/20 text-slate-950 shrink-0">
+              <Wrench className="w-4 h-4 sm:w-4.5 sm:h-4.5 stroke-[2.5]" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-1 sm:gap-1.5">
-                <h1 className="text-sm sm:text-lg font-bold tracking-tight text-white truncate">
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 truncate">
                   أوتوستوك
                 </h1>
+                <span className="hidden xl:inline-block px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 border border-amber-500/20 text-[10px] font-bold">
+                  {totalItemsCount} قطعة (${totalStockValue.toFixed(0)})
+                </span>
               </div>
-              <p className="text-[10px] text-slate-400 hidden md:block">مخزون ورشة الميكانيكا وماسح الفواتير بالذكاء الاصطناعي</p>
+              <p className="text-[10px] text-slate-500 hidden lg:block">مخزون ورشة الميكانيكا وماسح الفواتير بالذكاء الاصطناعي</p>
             </div>
           </div>
 
-          {/* Primary & Secondary Action Controls */}
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {/* Add Part Button */}
-            <button
-              id="add-part-btn"
-              onClick={onOpenAddItem}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg sm:rounded-xl text-xs sm:text-sm flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer shrink-0"
-              title="إضافة قطعة غيار جديدة يدوياً"
-            >
-              <Plus className="w-4 h-4 stroke-[3] shrink-0" />
-              <span>إضافة قطعة</span>
-            </button>
+          {/* Action Controls Bar */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            
+            {/* Quick Sale Mode Toggle */}
+            {onToggleQuickSale && (
+              <button
+                id="toggle-quick-sale-btn"
+                onClick={onToggleQuickSale}
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                  quickSaleMode
+                    ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 border border-rose-500'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                }`}
+                title="تفعيل وضع البيع السريع على الكاونتر"
+              >
+                <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span className="hidden sm:inline">وضع البيع</span>
+                <span className="sm:hidden">بيع</span>
+                {quickSaleMode && (
+                  <span className="w-2 h-2 rounded-full bg-white animate-pulse shrink-0" />
+                )}
+              </button>
+            )}
+
+            {/* Reorder List Button */}
+            {onOpenReorderList && (
+              <button
+                id="open-reorder-list-btn"
+                onClick={onOpenReorderList}
+                className={`relative px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                  totalAlertCount > 0
+                    ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                }`}
+                title="قائمة طلبات التوريد وإعادة الطلب للموردين"
+              >
+                <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span className="hidden md:inline">طلبات التوريد</span>
+                {totalAlertCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-600 text-white shrink-0">
+                    {totalAlertCount}
+                  </span>
+                )}
+              </button>
+            )}
+
           </div>
         </div>
 
         {/* Search & Category Filter Sub-Bar */}
-        <div className="py-2 border-t border-slate-800/80 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 w-full">
+        <div className="py-2 border-t border-slate-200 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 w-full">
           
           {/* Search Input */}
           <div className="relative w-full md:max-w-md">
@@ -99,12 +137,12 @@ export const Header: React.FC<HeaderProps> = ({
               placeholder="ابحث باسم القطعة، رقم الصنف (SKU)، الرف، أو المورد..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pr-8.5 pl-7 py-1.5 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-200 placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/40 transition-colors text-right"
+              className="w-full pr-8.5 pl-7 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-xs sm:text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors text-right"
             />
             {searchQuery && (
               <button
                 onClick={() => onSearchChange('')}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs px-1 cursor-pointer"
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs px-1 cursor-pointer"
               >
                 ✕
               </button>
@@ -119,7 +157,7 @@ export const Header: React.FC<HeaderProps> = ({
               className={`px-2.5 sm:px-3 py-1 rounded-lg font-medium whitespace-nowrap transition-colors shrink-0 cursor-pointer ${
                 activeFilter === 'ALL'
                   ? 'bg-amber-500 text-slate-950 font-bold'
-                  : 'bg-slate-800/70 text-slate-300 hover:bg-slate-800 hover:text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
               }`}
             >
               الكل ({stockItems.length})
@@ -132,14 +170,14 @@ export const Header: React.FC<HeaderProps> = ({
                 activeFilter === 'LOW_STOCK'
                   ? 'bg-amber-500 text-slate-950 font-bold'
                   : totalAlertCount > 0
-                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30'
-                  : 'bg-slate-800/70 text-slate-400 hover:bg-slate-800'
+                  ? 'bg-rose-50 text-rose-700 border border-rose-300 hover:bg-rose-100'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
               <span>مخزون منخفض</span>
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                outOfStockCount > 0 ? 'bg-rose-600 text-white' : 'bg-amber-500/30 text-amber-200'
+                outOfStockCount > 0 ? 'bg-rose-600 text-white' : 'bg-amber-200 text-amber-900'
               }`}>
                 {totalAlertCount}
               </span>
@@ -152,8 +190,8 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => onSelectFilter(cat)}
                 className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-colors shrink-0 cursor-pointer ${
                   activeFilter === cat
-                    ? 'bg-slate-200 text-slate-950 font-bold'
-                    : 'bg-slate-800/70 text-slate-300 hover:bg-slate-800 hover:text-white'
+                    ? 'bg-amber-500 text-slate-950 font-bold'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
                 }`}
               >
                 {cat}

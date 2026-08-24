@@ -27,6 +27,13 @@ import {
   playLowStockAlertSound, 
   setSoundEffectsEnabled
 } from './utils/audioFeedback';
+import {
+  fetchStockItemsFromDB,
+  saveStockItemToDB,
+  deleteStockItemFromDB,
+  fetchTransactionsFromDB,
+  saveTransactionToDB
+} from './utils/supabaseStorage';
 
 const STOCK_STORAGE_KEY = 'autostock_inventory_data_v3_ar';
 const TRANSACTION_STORAGE_KEY = 'autostock_transactions_data_v2_ar';
@@ -84,6 +91,55 @@ export default function App() {
     }
   });
 
+  // Load from Supabase DB on mount
+  useEffect(() => {
+    async function loadFromSupabase() {
+      try {
+        const dbItems = await fetchStockItemsFromDB();
+        if (dbItems && dbItems.length > 0) {
+          const mapped = dbItems.map((item: any) => ({
+            id: item.id,
+            partNumber: item.part_number,
+            name: item.name,
+            category: item.category,
+            imageUrl: item.image_url,
+            quantity: item.quantity,
+            minStockThreshold: item.min_stock_threshold,
+            unit: item.unit,
+            costPrice: Number(item.cost_price),
+            sellingPrice: Number(item.selling_price),
+            location: item.location,
+            supplier: item.supplier,
+            lastUpdated: item.last_updated,
+            notes: item.notes,
+          }));
+          setStockItems(mapped);
+        }
+
+        const dbTx = await fetchTransactionsFromDB();
+        if (dbTx && dbTx.length > 0) {
+          const mappedTx = dbTx.map((tx: any) => ({
+            id: tx.id,
+            itemId: tx.item_id,
+            itemName: tx.item_name,
+            partNumber: tx.part_number,
+            type: tx.type,
+            quantityDelta: tx.quantity_delta,
+            previousQuantity: tx.previous_quantity,
+            newQuantity: tx.new_quantity,
+            timestamp: tx.timestamp,
+            note: tx.note,
+            invoiceNumber: tx.invoice_number,
+          }));
+          setTransactions(mappedTx);
+        }
+      } catch (err) {
+        console.warn('Could not load from Supabase DB, using local state:', err);
+      }
+    }
+    loadFromSupabase();
+  }, []);
+
   // 3. UI Filters & Preferences
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
@@ -102,6 +158,7 @@ export default function App() {
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isReorderModalOpen, setIsReorderModalOpen] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<StockItem | null>(null);
 
   // 5. Toast Notification State
@@ -114,10 +171,13 @@ export default function App() {
     }, 4500);
   };
 
-  // Sync to LocalStorage
+  // Sync to LocalStorage & Supabase DB
   useEffect(() => {
     try {
       localStorage.setItem(STOCK_STORAGE_KEY, JSON.stringify(stockItems));
+      stockItems.forEach((item) => {
+        saveStockItemToDB(item);
+      });
     } catch (e) {
       console.error('Failed to persist stock:', e);
     }
@@ -134,6 +194,9 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem(TRANSACTION_STORAGE_KEY, JSON.stringify(transactions));
+      if (transactions.length > 0) {
+        saveTransactionToDB(transactions[0]);
+      }
     } catch (e) {
       console.error('Failed to persist transactions:', e);
     }
@@ -391,17 +454,21 @@ export default function App() {
   // Delete item
   const handleDeleteItem = (itemId: string) => {
     setStockItems((prev) => prev.filter((i) => i.id !== itemId));
+    deleteStockItemFromDB(itemId);
     showToast('تم حذف الصنف', 'تمت إزالة القطعة من سجل المخزون.', 'info');
   };
 
   // Reset to default
   const handleResetData = () => {
-    if (confirm('هل تريد استعادة المخزون النموذجي الأولي لورشة الميكانيكا؟')) {
-      setStockItems(INITIAL_STOCK_ITEMS);
-      setCategories(ARABIC_PART_CATEGORIES);
-      setTransactions([]);
-      showToast('تمت إعادة الضبط', 'تمت استعادة مخزون الورشة الافتراضي بنجاح.', 'info');
-    }
+    setIsResetModalOpen(true);
+  };
+
+  const confirmResetData = () => {
+    setStockItems(INITIAL_STOCK_ITEMS);
+    setCategories(ARABIC_PART_CATEGORIES);
+    setTransactions([]);
+    setIsResetModalOpen(false);
+    showToast('تمت إعادة الضبط', 'تمت استعادة مخزون الورشة الافتراضي بنجاح.', 'info');
   };
 
   // Overall inventory metrics
@@ -439,7 +506,7 @@ export default function App() {
   }, [stockItems, searchQuery, activeFilter]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950 pb-24" dir="rtl">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950 pb-24" dir="rtl">
       
       {/* 1. Main Navigation Header */}
       <Header
@@ -467,30 +534,30 @@ export default function App() {
 
       {/* 2. Key Metrics Summary Bar (Below the Header - Responsive on Mobile & Desktop) */}
       <section className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-4" aria-label="إحصائيات المخزون">
-        <div className="grid grid-cols-3 gap-2 sm:gap-4 bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 sm:p-4 text-right shadow-lg shadow-black/20">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 bg-white border border-slate-200 rounded-2xl p-2.5 sm:p-4 text-right shadow-sm">
           <div className="min-w-0">
-            <span className="text-slate-400 block text-[10px] sm:text-xs font-semibold truncate">
+            <span className="text-slate-500 block text-[10px] sm:text-xs font-semibold truncate">
               إجمالي الأصناف (SKU)
             </span>
-            <span className="font-mono font-bold text-xs sm:text-lg text-slate-100 mt-0.5 sm:mt-1 block truncate">
-              {stockItems.length} <span className="text-[10px] sm:text-xs font-normal text-slate-400 font-sans">صنف</span>
+            <span className="font-mono font-bold text-xs sm:text-lg text-slate-900 mt-0.5 sm:mt-1 block truncate">
+              {stockItems.length} <span className="text-[10px] sm:text-xs font-normal text-slate-500 font-sans">صنف</span>
             </span>
           </div>
 
-          <div className="min-w-0 pr-2 sm:pr-4 border-r border-slate-800">
-            <span className="text-slate-400 block text-[10px] sm:text-xs font-semibold truncate">
+          <div className="min-w-0 pr-2 sm:pr-4 border-r border-slate-200">
+            <span className="text-slate-500 block text-[10px] sm:text-xs font-semibold truncate">
               إجمالي القطع بالمخزن
             </span>
-            <span className="font-mono font-bold text-xs sm:text-lg text-emerald-400 mt-0.5 sm:mt-1 block truncate">
-              {totalUnitsInStock} <span className="text-[10px] sm:text-xs font-normal text-slate-400 font-sans">قطعة</span>
+            <span className="font-mono font-bold text-xs sm:text-lg text-emerald-600 mt-0.5 sm:mt-1 block truncate">
+              {totalUnitsInStock} <span className="text-[10px] sm:text-xs font-normal text-slate-500 font-sans">قطعة</span>
             </span>
           </div>
 
-          <div className="min-w-0 pr-2 sm:pr-4 border-r border-slate-800">
-            <span className="text-slate-400 block text-[10px] sm:text-xs font-semibold truncate">
+          <div className="min-w-0 pr-2 sm:pr-4 border-r border-slate-200">
+            <span className="text-slate-500 block text-[10px] sm:text-xs font-semibold truncate">
               القيمة الإجمالية للمخزون
             </span>
-            <span className="font-mono font-bold text-xs sm:text-lg text-amber-400 mt-0.5 sm:mt-1 block truncate">
+            <span className="font-mono font-bold text-xs sm:text-lg text-amber-600 mt-0.5 sm:mt-1 block truncate">
               ${totalStockValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
@@ -509,28 +576,28 @@ export default function App() {
       {toast && (
         <div className="fixed top-16 sm:top-20 left-3 right-3 sm:right-auto sm:left-4 z-50 max-w-[calc(100vw-1.5rem)] sm:max-w-md animate-in slide-in-from-top-4 duration-300" dir="rtl">
           <div
-            className={`p-3.5 sm:p-4 rounded-2xl border shadow-2xl backdrop-blur-md flex items-start gap-2.5 sm:gap-3 ${
+            className={`p-3.5 sm:p-4 rounded-2xl border shadow-xl backdrop-blur-md flex items-start gap-2.5 sm:gap-3 ${
               toast.type === 'alert'
-                ? 'bg-rose-950/95 border-rose-500 text-rose-100 shadow-rose-950/50'
+                ? 'bg-rose-50 border-rose-300 text-rose-900 shadow-rose-100'
                 : toast.type === 'success'
-                ? 'bg-emerald-950/95 border-emerald-500 text-emerald-100 shadow-emerald-950/50'
-                : 'bg-slate-900/95 border-amber-500/50 text-slate-100 shadow-amber-950/40'
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-emerald-100'
+                : 'bg-white border-amber-300 text-slate-900 shadow-amber-100'
             }`}
           >
             {toast.type === 'alert' ? (
-              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-rose-400 shrink-0 mt-0.5" />
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-rose-600 shrink-0 mt-0.5" />
             ) : toast.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 shrink-0 mt-0.5" />
             ) : (
-              <Info className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 shrink-0 mt-0.5" />
+              <Info className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 shrink-0 mt-0.5" />
             )}
             <div className="flex-1 min-w-0 text-right">
               <h4 className="font-bold text-xs sm:text-sm truncate">{toast.title}</h4>
-              <p className="text-[11px] sm:text-xs text-slate-300 mt-0.5 line-clamp-2">{toast.desc}</p>
+              <p className="text-[11px] sm:text-xs text-slate-600 mt-0.5 line-clamp-2">{toast.desc}</p>
             </div>
             <button
               onClick={() => setToast(null)}
-              className="text-slate-400 hover:text-white text-xs p-1 shrink-0 cursor-pointer"
+              className="text-slate-400 hover:text-slate-700 text-xs p-1 shrink-0 cursor-pointer"
             >
               ✕
             </button>
@@ -544,13 +611,13 @@ export default function App() {
         {/* Subheader Title & Filter summary */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div className="text-right">
-            <h2 className="text-xl font-bold text-white flex items-center gap-2.5">
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2.5">
               {activeFilter === 'ALL'
                 ? 'مخزون قطع الغيار والمستودع'
                 : activeFilter === 'LOW_STOCK'
                 ? 'تنبيهات انخفاض ونفاد المخزون'
                 : `قطع ${activeFilter}`}
-              <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-slate-700">
+              <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-800 border border-slate-300">
                 {filteredStockItems.length} صنف
               </span>
             </h2>
@@ -560,9 +627,9 @@ export default function App() {
           <div className="flex items-center gap-2 text-xs">
             <button
               onClick={() => setIsInvoiceModalOpen(true)}
-              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
             >
-              <Camera className="w-3.5 h-3.5" />
+              <Camera className="w-3.5 h-3.5 text-amber-600" />
               <span>مسح فاتورة جديدة</span>
             </button>
           </div>
@@ -570,10 +637,10 @@ export default function App() {
 
         {/* Inventory Cards Grid */}
         {filteredStockItems.length === 0 ? (
-          <div className="p-12 text-center rounded-3xl bg-slate-900/50 border border-slate-800 my-8">
-            <Package className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-slate-200">لا توجد قطع مطابقة للبحث</h3>
-            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+          <div className="p-12 text-center rounded-3xl bg-white border border-slate-200 my-8 shadow-sm">
+            <Package className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-slate-800">لا توجد قطع مطابقة للبحث</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
               {searchQuery
                 ? `لم يتم العثور على أي صنف يطابق بحثك عن "${searchQuery}".`
                 : 'لا توجد قطع ضمن هذا القسم المختار حالياً.'}
@@ -582,7 +649,7 @@ export default function App() {
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-200 text-xs font-semibold hover:bg-slate-700 cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200 cursor-pointer"
                 >
                   مسح البحث
                 </button>
@@ -592,7 +659,7 @@ export default function App() {
                   setItemToEdit(null);
                   setIsAddItemModalOpen(true);
                 }}
-                className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold hover:bg-amber-400 cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold hover:bg-amber-400 cursor-pointer shadow-sm"
               >
                 إضافة قطعة جديدة يدوياً
               </button>
@@ -672,6 +739,33 @@ export default function App() {
         transactions={transactions}
         onClearHistory={() => setTransactions([])}
       />
+
+      {/* Reset Defaults Confirmation Modal */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-150" dir="rtl">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 max-w-sm w-full shadow-xl text-right">
+            <h3 className="text-base font-bold text-slate-900 mb-2">استعادة المخزون النموذجي؟</h3>
+            <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+              سيتم استعادة الأصناف والكميات الافتراضية لورشة الميكانيكا ومسح الحركات المحلية.
+            </p>
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                onClick={() => setIsResetModalOpen(false)}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                id="confirm-reset-stock-btn"
+                onClick={confirmResetData}
+                className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-600/20 cursor-pointer transition-colors"
+              >
+                تأكيد الاستعادة
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

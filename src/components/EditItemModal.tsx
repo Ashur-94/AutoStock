@@ -12,7 +12,9 @@ import {
   Check, 
   Link as LinkIcon, 
   Sparkles,
-  Camera
+  Camera,
+  Cloud,
+  Loader2
 } from 'lucide-react';
 import { StockItem } from '../types';
 import { 
@@ -20,6 +22,7 @@ import {
   DEFAULT_PART_PRESET_IMAGES,
   normalizeCategory 
 } from '../data/defaultStock';
+import { uploadToSupabaseBucket } from '../utils/supabaseStorage';
 
 interface EditItemModalProps {
   isOpen: boolean;
@@ -63,6 +66,9 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
   // Image Selection Mode
   const [imageInputMode, setImageInputMode] = useState<'presets' | 'url' | 'none'>('presets');
   const [customImageUrl, setCustomImageUrl] = useState('');
+  const [imageError, setImageError] = useState<string>('');
+  const [isUploadingToSupabase, setIsUploadingToSupabase] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -117,22 +123,38 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
     setCategoryError('');
   };
 
-  // Handle File Image Upload (Base64)
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle File Image Upload with Supabase Bucket storage
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setImageError('');
     if (file.size > 5 * 1024 * 1024) {
-      alert('حجم الصورة كبير جداً، يرجى اختيار صورة أقل من 5 ميجابايت.');
+      setImageError('حجم الصورة كبير جداً، يرجى اختيار صورة أقل من 5 ميجابايت.');
       return;
     }
 
+    // Set preview immediately
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const result = event.target?.result as string;
       if (result) {
         setFormData((prev) => ({ ...prev, imageUrl: result }));
         setCustomImageUrl(result);
+
+        // Upload to Supabase bucket in background
+        try {
+          setIsUploadingToSupabase(true);
+          const uploadRes = await uploadToSupabaseBucket(file, `part_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`);
+          if (uploadRes?.publicUrl) {
+            setFormData((prev) => ({ ...prev, imageUrl: uploadRes.publicUrl }));
+            setCustomImageUrl(uploadRes.publicUrl);
+          }
+        } catch (uploadErr) {
+          console.warn('Supabase image upload warning (fallback to base64 preview):', uploadErr);
+        } finally {
+          setIsUploadingToSupabase(false);
+        }
       }
     };
     reader.readAsDataURL(file);
@@ -170,27 +192,27 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200" dir="rtl">
-      <div className="relative w-full max-w-[calc(100vw-1rem)] sm:max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[94vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/40 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200" dir="rtl">
+      <div className="relative w-full max-w-[calc(100vw-1rem)] sm:max-w-2xl bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[94vh] flex flex-col">
         
         {/* Header */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-white border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shrink-0">
               <PackagePlus className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0 text-right">
-              <h2 className="text-sm sm:text-lg font-bold text-white truncate">
+              <h2 className="text-sm sm:text-lg font-bold text-slate-900 truncate">
                 {itemToEdit ? 'تعديل بيانات الصنف والصورة' : 'إضافة قطعة غيار جديدة'}
               </h2>
-              <p className="text-[11px] sm:text-xs text-slate-400 truncate">
+              <p className="text-[11px] sm:text-xs text-slate-500 truncate">
                 {itemToEdit ? `تحديث الصنف: ${itemToEdit.partNumber}` : 'أدخل بيانات القطعة، التصنيف، والصورة'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0 cursor-pointer"
           >
             <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
@@ -200,10 +222,10 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
         <form onSubmit={handleSubmit} className="p-3.5 sm:p-6 space-y-4 overflow-y-auto flex-1 text-right">
           
           {/* 1. Item Image Selector & Live Preview */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-3">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 shadow-sm">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                <ImageIcon className="w-4 h-4 text-amber-400" />
+              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-amber-600" />
                 <span>صورة قطعة الغيار</span>
               </label>
               {formData.imageUrl && (
@@ -213,7 +235,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                     setFormData((prev) => ({ ...prev, imageUrl: '' }));
                     setCustomImageUrl('');
                   }}
-                  className="text-[11px] text-rose-400 hover:text-rose-300 font-semibold cursor-pointer"
+                  className="text-[11px] text-rose-600 hover:text-rose-700 font-semibold cursor-pointer"
                 >
                   إزالة الصورة
                 </button>
@@ -222,7 +244,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
 
             {/* Preview Box */}
             <div className="flex flex-col sm:flex-row items-center gap-3">
-              <div className="w-full sm:w-36 h-28 sm:h-28 rounded-xl bg-slate-900 border border-slate-800 relative overflow-hidden flex items-center justify-center shrink-0">
+              <div className="w-full sm:w-36 h-28 sm:h-28 rounded-xl bg-white border border-slate-200 relative overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
                 {formData.imageUrl ? (
                   <img
                     src={formData.imageUrl}
@@ -233,7 +255,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                     }}
                   />
                 ) : (
-                  <div className="text-center p-2 text-slate-600 flex flex-col items-center gap-1">
+                  <div className="text-center p-2 text-slate-400 flex flex-col items-center gap-1">
                     <ImageIcon className="w-7 h-7" />
                     <span className="text-[10px]">لا توجد صورة</span>
                   </div>
@@ -254,7 +276,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Camera className="w-3.5 h-3.5" />
                     <span>رفع صورة / كاميرا</span>
@@ -265,11 +287,11 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                     onClick={() => setImageInputMode(imageInputMode === 'presets' ? 'none' : 'presets')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                       imageInputMode === 'presets'
-                        ? 'bg-slate-800 text-white border border-slate-600'
-                        : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                        ? 'bg-slate-200 text-slate-900 border border-slate-300'
+                        : 'bg-white text-slate-700 hover:text-slate-900 border border-slate-200'
                     }`}
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                     <span>صور قطع جاهزة</span>
                   </button>
 
@@ -278,8 +300,8 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                     onClick={() => setImageInputMode(imageInputMode === 'url' ? 'none' : 'url')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                       imageInputMode === 'url'
-                        ? 'bg-slate-800 text-white border border-slate-600'
-                        : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                        ? 'bg-slate-200 text-slate-900 border border-slate-300'
+                        : 'bg-white text-slate-700 hover:text-slate-900 border border-slate-200'
                     }`}
                   >
                     <LinkIcon className="w-3.5 h-3.5" />
@@ -290,8 +312,8 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                 {/* Preset Image Gallery Picker */}
                 {imageInputMode === 'presets' && (
                   <div className="pt-2">
-                    <p className="text-[10px] text-slate-400 mb-1.5">اختر صورة مناسبة لنوع القطعة:</p>
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-h-28 overflow-y-auto p-1 bg-slate-900/60 rounded-xl border border-slate-800/80">
+                    <p className="text-[10px] text-slate-500 mb-1.5">اختر صورة مناسبة لنوع القطعة:</p>
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-h-28 overflow-y-auto p-1 bg-white rounded-xl border border-slate-200 shadow-sm">
                       {DEFAULT_PART_PRESET_IMAGES.map((preset) => (
                         <button
                           key={preset.id}
@@ -302,8 +324,8 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                           }}
                           className={`relative rounded-lg overflow-hidden h-12 border transition-all cursor-pointer group ${
                             formData.imageUrl === preset.url
-                              ? 'border-amber-500 ring-2 ring-amber-500/40'
-                              : 'border-slate-800 hover:border-slate-600 opacity-75 hover:opacity-100'
+                              ? 'border-amber-500 ring-2 ring-amber-500/30'
+                              : 'border-slate-200 hover:border-slate-400 opacity-75 hover:opacity-100'
                           }`}
                           title={preset.name}
                         >
@@ -312,13 +334,25 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                             alt={preset.name}
                             className="w-full h-full object-cover"
                           />
-                          <span className="absolute inset-x-0 bottom-0 bg-slate-950/80 text-[8px] text-slate-200 truncate px-0.5 text-center">
+                          <span className="absolute inset-x-0 bottom-0 bg-slate-900/80 text-[8px] text-white truncate px-0.5 text-center">
                             {preset.name}
                           </span>
                         </button>
                       ))}
                     </div>
                   </div>
+                )}
+
+                {/* Image Error or Cloud Upload Status */}
+                {isUploadingToSupabase && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-cyan-700 font-medium pt-0.5">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>جاري رفع الصورة إلى سحابة Supabase Storage...</span>
+                  </div>
+                )}
+
+                {imageError && (
+                  <p className="text-[11px] text-rose-600 font-medium">{imageError}</p>
                 )}
 
                 {/* Direct URL Input */}
@@ -330,13 +364,13 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                       value={customImageUrl}
                       onChange={(e) => setCustomImageUrl(e.target.value)}
                       onBlur={handleApplyCustomUrl}
-                      className="flex-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-200 font-mono text-left focus:outline-none focus:border-amber-500"
+                      className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 font-mono text-left focus:outline-none focus:border-amber-500 shadow-sm"
                       dir="ltr"
                     />
                     <button
                       type="button"
                       onClick={handleApplyCustomUrl}
-                      className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 text-xs font-semibold cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-semibold cursor-pointer border border-slate-300"
                     >
                       تطبيق
                     </button>
@@ -575,19 +609,37 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
           {/* Footer Actions */}
           <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
             {itemToEdit && onDelete ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (confirm(`هل أنت متأكد من حذف ${itemToEdit.name} من المخزون؟`)) {
-                    onDelete(itemToEdit.id);
-                    onClose();
-                  }
-                }}
-                className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-500/10 flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>حذف القطعة</span>
-              </button>
+              showDeleteConfirm ? (
+                <div className="flex items-center gap-2 bg-rose-950/60 border border-rose-500/40 px-3 py-1.5 rounded-xl text-xs">
+                  <span className="text-rose-300 font-semibold">تأكيد حذف القطعة؟</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDelete(itemToEdit.id);
+                      onClose();
+                    }}
+                    className="px-2 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold cursor-pointer"
+                  >
+                    نعم، حذف
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+                  >
+                    تراجع
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-500/10 flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>حذف القطعة</span>
+                </button>
+              )
             ) : (
               <div />
             )}

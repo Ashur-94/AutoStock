@@ -4,16 +4,22 @@ let soundEnabled = true;
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
-  if (!audioCtx) {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (AudioContextClass) {
-      audioCtx = new AudioContextClass();
+  try {
+    if (!audioCtx) {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        audioCtx = new AudioContextClass();
+      }
     }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {
+        // Safe ignore suspended audio in sandboxed iframes
+      });
+    }
+    return audioCtx;
+  } catch {
+    return null;
   }
-  if (audioCtx && audioCtx.state === 'suspended') {
-    audioCtx.resume();
-  }
-  return audioCtx;
 }
 
 export function setSoundEffectsEnabled(enabled: boolean) {
@@ -45,7 +51,7 @@ export function playSaleSound() {
     
     osc.start();
     osc.stop(ctx.currentTime + 0.08);
-  } catch (e) {
+  } catch {
     // Ignore audio error
   }
 }
@@ -71,7 +77,7 @@ export function playRestockSound() {
     
     osc.start();
     osc.stop(ctx.currentTime + 0.13);
-  } catch (e) {
+  } catch {
     // Ignore audio error
   }
 }
@@ -87,23 +93,27 @@ export function playLowStockAlertSound() {
     
     // Double beep
     [0, 0.12].forEach((offset) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(520, now + offset);
-      osc.frequency.setValueAtTime(390, now + offset + 0.05);
-      
-      gain.gain.setValueAtTime(0.1, now + offset);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.08);
-      
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      
-      osc.start(now + offset);
-      osc.stop(now + offset + 0.09);
+      try {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(520, now + offset);
+        osc.frequency.setValueAtTime(390, now + offset + 0.05);
+        
+        gain.gain.setValueAtTime(0.1, now + offset);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.08);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.start(now + offset);
+        osc.stop(now + offset + 0.09);
+      } catch {
+        // Ignore audio node error
+      }
     });
-  } catch (e) {
+  } catch {
     // Ignore audio error
   }
 }
@@ -119,22 +129,26 @@ export function playInvoiceAppliedSound() {
     const now = ctx.currentTime;
     
     notes.forEach((freq, index) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now + index * 0.06);
-      
-      gain.gain.setValueAtTime(0.12, now + index * 0.06);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.06 + 0.15);
-      
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      
-      osc.start(now + index * 0.06);
-      osc.stop(now + index * 0.06 + 0.16);
+      try {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + index * 0.06);
+        
+        gain.gain.setValueAtTime(0.12, now + index * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.06 + 0.15);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.start(now + index * 0.06);
+        osc.stop(now + index * 0.06 + 0.16);
+      } catch {
+        // Ignore node error
+      }
     });
-  } catch (e) {
+  } catch {
     // Ignore audio error
   }
 }
