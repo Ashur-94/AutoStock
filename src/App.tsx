@@ -22,7 +22,6 @@ import { ReorderListModal } from './components/ReorderListModal';
 import { TransactionHistoryModal } from './components/TransactionHistoryModal';
 import { ItemDetailModal } from './components/ItemDetailModal';
 import { CategoriesModal } from './components/CategoriesModal';
-import { CounterSaleBar } from './components/CounterSaleBar';
 import { 
   playSaleSound, 
   playRestockSound, 
@@ -146,7 +145,6 @@ export default function App() {
       return true;
     }
   });
-  const [quickSaleMode, setQuickSaleMode] = useState(false);
 
   // 4. Modal States
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -256,30 +254,41 @@ export default function App() {
     return stockItems.filter((i) => i.quantity > 0 && i.quantity <= i.minStockThreshold);
   }, [stockItems]);
 
+  // Live item for detail modal to ensure real-time sync with stock changes
+  const liveDetailItem = useMemo(() => {
+    if (!selectedItemForDetails) return null;
+    return stockItems.find((i) => i.id === selectedItemForDetails.id) || selectedItemForDetails;
+  }, [selectedItemForDetails, stockItems]);
+
   // Decrement handler (Sale of 1 or more parts)
   const handleDecrement = (item: StockItem, delta = 1) => {
-    if (item.quantity <= 0) return;
+    const currentItem = stockItems.find((i) => i.id === item.id) || item;
+    if (currentItem.quantity <= 0) return;
 
-    const previousQty = item.quantity;
-    const newQty = Math.max(0, item.quantity - delta);
+    const previousQty = currentItem.quantity;
+    const newQty = Math.max(0, currentItem.quantity - delta);
     const actualDelta = newQty - previousQty;
 
     setStockItems((prev) =>
       prev.map((i) => (i.id === item.id ? { ...i, quantity: newQty, lastUpdated: new Date().toISOString() } : i))
     );
 
+    setSelectedItemForDetails((prev) =>
+      prev && prev.id === item.id ? { ...prev, quantity: newQty, lastUpdated: new Date().toISOString() } : prev
+    );
+
     // Record transaction
     const newTx: StockTransaction = {
       id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      itemId: item.id,
-      itemName: item.name,
-      partNumber: item.partNumber,
+      itemId: currentItem.id,
+      itemName: currentItem.name,
+      partNumber: currentItem.partNumber,
       type: 'SALE',
       quantityDelta: actualDelta,
       previousQuantity: previousQty,
       newQuantity: newQty,
       timestamp: new Date().toISOString(),
-      note: `بيع ${Math.abs(actualDelta)} ${item.unit} للعميل`,
+      note: `بيع ${Math.abs(actualDelta)} ${currentItem.unit} للعميل`,
     };
 
     setTransactions((prev) => [newTx, ...prev].slice(0, 300));
@@ -291,14 +300,14 @@ export default function App() {
       playLowStockAlertSound();
       showToast(
         'تنبيه حرج: نفد المخزون بالكامل!',
-        `القطعة "${item.name}" (${item.partNumber}) أصبحت 0! يرجى طلب توريد عاجل من المورد.`,
+        `القطعة "${currentItem.name}" (${currentItem.partNumber}) أصبحت 0! يرجى طلب توريد عاجل من المورد.`,
         'alert'
       );
-    } else if (newQty <= item.minStockThreshold && previousQty > item.minStockThreshold) {
+    } else if (newQty <= currentItem.minStockThreshold && previousQty > currentItem.minStockThreshold) {
       playLowStockAlertSound();
       showToast(
         'تنبيه: اقتراب نفاد المخزون',
-        `القطعة "${item.name}" قاربت على النفاد (المتبقي ${newQty} فقط، الحد الأدنى: ${item.minStockThreshold}).`,
+        `القطعة "${currentItem.name}" قاربت على النفاد (المتبقي ${newQty} فقط، الحد الأدنى: ${currentItem.minStockThreshold}).`,
         'alert'
       );
     }
@@ -306,24 +315,29 @@ export default function App() {
 
   // Increment handler (Manual Restock of 1 or more parts)
   const handleIncrement = (item: StockItem, delta = 1) => {
-    const previousQty = item.quantity;
-    const newQty = item.quantity + delta;
+    const currentItem = stockItems.find((i) => i.id === item.id) || item;
+    const previousQty = currentItem.quantity;
+    const newQty = previousQty + delta;
 
     setStockItems((prev) =>
       prev.map((i) => (i.id === item.id ? { ...i, quantity: newQty, lastUpdated: new Date().toISOString() } : i))
     );
 
+    setSelectedItemForDetails((prev) =>
+      prev && prev.id === item.id ? { ...prev, quantity: newQty, lastUpdated: new Date().toISOString() } : prev
+    );
+
     const newTx: StockTransaction = {
       id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      itemId: item.id,
-      itemName: item.name,
-      partNumber: item.partNumber,
+      itemId: currentItem.id,
+      itemName: currentItem.name,
+      partNumber: currentItem.partNumber,
       type: 'MANUAL_RESTOCK',
       quantityDelta: delta,
       previousQuantity: previousQty,
       newQuantity: newQty,
       timestamp: new Date().toISOString(),
-      note: `توريد يدوي +${delta} ${item.unit}`,
+      note: `توريد يدوي +${delta} ${currentItem.unit}`,
     };
 
     setTransactions((prev) => [newTx, ...prev].slice(0, 300));
@@ -332,7 +346,8 @@ export default function App() {
 
   // Set exact quantity directly
   const handleSetExactQuantity = (item: StockItem, exactQty: number) => {
-    const previousQty = item.quantity;
+    const currentItem = stockItems.find((i) => i.id === item.id) || item;
+    const previousQty = currentItem.quantity;
     const actualDelta = exactQty - previousQty;
     if (actualDelta === 0) return;
 
@@ -340,11 +355,15 @@ export default function App() {
       prev.map((i) => (i.id === item.id ? { ...i, quantity: exactQty, lastUpdated: new Date().toISOString() } : i))
     );
 
+    setSelectedItemForDetails((prev) =>
+      prev && prev.id === item.id ? { ...prev, quantity: exactQty, lastUpdated: new Date().toISOString() } : prev
+    );
+
     const newTx: StockTransaction = {
       id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      itemId: item.id,
-      itemName: item.name,
-      partNumber: item.partNumber,
+      itemId: currentItem.id,
+      itemName: currentItem.name,
+      partNumber: currentItem.partNumber,
       type: 'ADJUSTMENT',
       quantityDelta: actualDelta,
       previousQuantity: previousQty,
@@ -557,8 +576,6 @@ export default function App() {
         onSelectFilter={setActiveFilter}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        quickSaleMode={quickSaleMode}
-        onToggleQuickSale={() => setQuickSaleMode((prev) => !prev)}
       />
 
       {/* 2. Key Metrics Summary Bar (Below the Header - Responsive on Mobile & Desktop) */}
@@ -731,24 +748,12 @@ export default function App() {
                   setSelectedItemForDetails(clickedItem);
                   setIsDetailModalOpen(true);
                 }}
-                quickSaleMode={quickSaleMode}
               />
             ))}
           </div>
         )}
 
       </main>
-
-      {/* 5. Counter Sale Mode Bottom Float Bar */}
-      {quickSaleMode && (
-        <CounterSaleBar
-          recentSales={transactions}
-          onClearSession={() => {
-            showToast('تمت إعادة ضبط السلة', 'تم مسح قطع العملية الحالية.', 'info');
-          }}
-          onCloseQuickSale={() => setQuickSaleMode(false)}
-        />
-      )}
 
       {/* 6. Modals */}
       {/* Item Detail Popup Modal */}
@@ -758,7 +763,7 @@ export default function App() {
           setIsDetailModalOpen(false);
           setSelectedItemForDetails(null);
         }}
-        item={selectedItemForDetails}
+        item={liveDetailItem}
         onIncrement={handleIncrement}
         onDecrement={handleDecrement}
         onSetExactQuantity={handleSetExactQuantity}

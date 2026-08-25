@@ -18,7 +18,6 @@ interface StockCardProps {
   onSetExactQuantity: (item: StockItem, newQty: number) => void;
   onEdit: (item: StockItem) => void;
   onCardClick?: (item: StockItem) => void;
-  quickSaleMode?: boolean;
 }
 
 export const StockCard: React.FC<StockCardProps> = ({
@@ -28,7 +27,6 @@ export const StockCard: React.FC<StockCardProps> = ({
   onSetExactQuantity,
   onEdit,
   onCardClick,
-  quickSaleMode = false,
 }) => {
   const [isEditingQty, setIsEditingQty] = useState(false);
   const [tempQty, setTempQty] = useState(String(item.quantity));
@@ -262,30 +260,6 @@ export const StockCard: React.FC<StockCardProps> = ({
             </button>
 
           </div>
-
-          {/* Quick Pack Steppers in Counter Sale Mode */}
-          {quickSaleMode && (
-            <div className="flex items-center justify-between gap-1.5 mt-2 pt-2 border-t border-slate-200">
-              <span className="text-[10px] text-slate-500 font-semibold">خصم سريع:</span>
-              <div className="flex items-center gap-1" dir="ltr">
-                {[1, 2, 4, 10].map((qty) => (
-                  <button
-                    key={qty}
-                    id={`quick-sell-${item.id}-${qty}`}
-                    onClick={() => handleDecrement(qty)}
-                    disabled={item.quantity < qty}
-                    className={`px-2 py-0.5 rounded text-[11px] font-bold font-mono transition-colors cursor-pointer ${
-                      item.quantity < qty
-                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                        : 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200'
-                    }`}
-                  >
-                    -{qty}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
       </div>

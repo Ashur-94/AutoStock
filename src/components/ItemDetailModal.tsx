@@ -179,14 +179,21 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
 
             <div className="flex items-center justify-between gap-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
               <button
-                onClick={() => onDecrement(item, 1)}
+                id="modal-item-decrement"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onDecrement(item, 1);
+                }}
                 disabled={item.quantity <= 0}
-                className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-xl transition-all cursor-pointer ${
+                className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-xl transition-all cursor-pointer select-none ${
                   item.quantity <= 0
                     ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
                     : 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 shadow-sm active:scale-95'
                 }`}
                 title="خصم 1"
+                aria-label="خصم 1"
               >
                 <Minus className="w-5 h-5 stroke-[3]" />
               </button>
@@ -208,6 +215,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                   </div>
                 ) : (
                   <button
+                    type="button"
                     onClick={() => {
                       setTempQty(String(item.quantity));
                       setIsEditingQty(true);
@@ -221,12 +229,72 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
               </div>
 
               <button
-                onClick={() => onIncrement(item, 1)}
-                className="w-12 h-12 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 flex items-center justify-center font-bold text-xl transition-all shadow-sm active:scale-95 cursor-pointer"
+                id="modal-item-increment"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onIncrement(item, 1);
+                }}
+                className="w-12 h-12 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 flex items-center justify-center font-bold text-xl transition-all shadow-sm active:scale-95 cursor-pointer select-none"
                 title="إضافة 1"
+                aria-label="إضافة 1"
               >
                 <Plus className="w-5 h-5 stroke-[3]" />
               </button>
+            </div>
+
+            {/* Quick +/- step adjustments */}
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <div className="flex items-center gap-1" dir="ltr">
+                <button
+                  type="button"
+                  onClick={() => onDecrement(item, 5)}
+                  disabled={item.quantity < 5}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono transition-all cursor-pointer ${
+                    item.quantity < 5
+                      ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                      : 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200'
+                  }`}
+                  title="خصم 5 قطع"
+                >
+                  -5
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDecrement(item, 10)}
+                  disabled={item.quantity < 10}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono transition-all cursor-pointer ${
+                    item.quantity < 10
+                      ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                      : 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200'
+                  }`}
+                  title="خصم 10 قطع"
+                >
+                  -10
+                </button>
+              </div>
+
+              <span className="text-[10px] text-slate-400 font-semibold">تعديل سريع</span>
+
+              <div className="flex items-center gap-1" dir="ltr">
+                <button
+                  type="button"
+                  onClick={() => onIncrement(item, 5)}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 text-xs font-bold font-mono transition-all cursor-pointer"
+                  title="إضافة 5 قطع"
+                >
+                  +5
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onIncrement(item, 10)}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 text-xs font-bold font-mono transition-all cursor-pointer"
+                  title="إضافة 10 قطع"
+                >
+                  +10
+                </button>
+              </div>
             </div>
           </div>
 

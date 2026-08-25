@@ -495,28 +495,70 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
               <label className="block text-[10px] font-bold text-slate-400 mb-1">
                 الكمية الحالية
               </label>
-              <input
-                type="number"
-                min="0"
-                required
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value, 10) || 0 })}
-                className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 font-mono font-extrabold text-emerald-400 text-sm text-center focus:outline-none"
-              />
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  id="edit-modal-qty-dec"
+                  onClick={() => setFormData((prev) => ({ ...prev, quantity: Math.max(0, prev.quantity - 1) }))}
+                  className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer shrink-0 select-none"
+                  title="خصم 1"
+                >
+                  -
+                </button>
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  id="edit-modal-quantity-input"
+                  value={formData.quantity}
+                  onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value, 10) || 0 })}
+                  className="w-full min-w-0 px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-700 font-mono font-extrabold text-emerald-400 text-sm text-center focus:outline-none"
+                />
+                <button
+                  type="button"
+                  id="edit-modal-qty-inc"
+                  onClick={() => setFormData((prev) => ({ ...prev, quantity: prev.quantity + 1 }))}
+                  className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer shrink-0 select-none"
+                  title="إضافة 1"
+                >
+                  +
+                </button>
+              </div>
             </div>
 
             <div>
               <label className="block text-[10px] font-bold text-amber-400 mb-1 flex items-center justify-center gap-1">
                 <AlertTriangle className="w-3 h-3" /> حد التنبيه
               </label>
-              <input
-                type="number"
-                min="1"
-                required
-                value={formData.minStockThreshold}
-                onChange={(e) => setFormData({ ...formData, minStockThreshold: parseInt(e.target.value, 10) || 1 })}
-                className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-amber-500/50 font-mono font-extrabold text-amber-300 text-sm text-center focus:outline-none"
-              />
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  id="edit-modal-threshold-dec"
+                  onClick={() => setFormData((prev) => ({ ...prev, minStockThreshold: Math.max(1, prev.minStockThreshold - 1) }))}
+                  className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer shrink-0 select-none"
+                  title="خصم 1"
+                >
+                  -
+                </button>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  id="edit-modal-threshold-input"
+                  value={formData.minStockThreshold}
+                  onChange={(e) => setFormData({ ...formData, minStockThreshold: parseInt(e.target.value, 10) || 1 })}
+                  className="w-full min-w-0 px-2 py-1.5 rounded-lg bg-slate-900 border border-amber-500/50 font-mono font-extrabold text-amber-300 text-sm text-center focus:outline-none"
+                />
+                <button
+                  type="button"
+                  id="edit-modal-threshold-inc"
+                  onClick={() => setFormData((prev) => ({ ...prev, minStockThreshold: prev.minStockThreshold + 1 }))}
+                  className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer shrink-0 select-none"
+                  title="إضافة 1"
+                >
+                  +
+                </button>
+              </div>
             </div>
           </div>
 

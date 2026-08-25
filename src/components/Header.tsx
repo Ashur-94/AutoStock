@@ -3,8 +3,7 @@ import {
   Wrench, 
   AlertTriangle, 
   Search,
-  ClipboardList,
-  ShoppingBag
+  ClipboardList
 } from 'lucide-react';
 import { StockItem } from '../types';
 import { ARABIC_PART_CATEGORIES } from '../data/defaultStock';
@@ -25,8 +24,6 @@ interface HeaderProps {
   onSelectFilter: (filter: string) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  quickSaleMode?: boolean;
-  onToggleQuickSale?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -45,8 +42,6 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectFilter,
   searchQuery,
   onSearchChange,
-  quickSaleMode = false,
-  onToggleQuickSale,
 }) => {
   const totalItemsCount = stockItems.reduce((acc, item) => acc + item.quantity, 0);
   const totalStockValue = stockItems.reduce((acc, item) => acc + (item.quantity * item.costPrice), 0);
@@ -79,27 +74,6 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Action Controls Bar */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             
-            {/* Quick Sale Mode Toggle */}
-            {onToggleQuickSale && (
-              <button
-                id="toggle-quick-sale-btn"
-                onClick={onToggleQuickSale}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
-                  quickSaleMode
-                    ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 border border-rose-500'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
-                }`}
-                title="تفعيل وضع البيع السريع على الكاونتر"
-              >
-                <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                <span className="hidden sm:inline">وضع البيع</span>
-                <span className="sm:hidden">بيع</span>
-                {quickSaleMode && (
-                  <span className="w-2 h-2 rounded-full bg-white animate-pulse shrink-0" />
-                )}
-              </button>
-            )}
-
             {/* Reorder List Button */}
             {onOpenReorderList && (
               <button
