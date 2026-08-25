@@ -11,7 +11,6 @@ import {
 import { StockItem, StockTransaction, ParsedInvoiceResult } from './types';
 import { 
   ARABIC_PART_CATEGORIES, 
-  DEFAULT_PART_PRESET_IMAGES,
   normalizeCategory 
 } from './data/defaultStock';
 import { Header } from './components/Header';
@@ -413,14 +412,12 @@ export default function App() {
           setCategories((prev) => [...prev, itemCat]);
         }
 
-        const presetFallback = DEFAULT_PART_PRESET_IMAGES[updatedCatalog.length % DEFAULT_PART_PRESET_IMAGES.length]?.url;
-
         const newItem: StockItem = {
           id: `stk-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
           partNumber: extracted.partNumber || `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
           name: extracted.name || 'قطعة غيار جديدة',
           category: itemCat,
-          imageUrl: extracted.imageUrl || presetFallback,
+          imageUrl: extracted.imageUrl || '',
           quantity: extracted.quantity,
           minStockThreshold: 4,
           unit: extracted.unit || 'قطعة',
@@ -480,9 +477,10 @@ export default function App() {
 
   // Delete item
   const handleDeleteItem = (itemId: string) => {
+    const itemToDelete = stockItems.find((i) => i.id === itemId);
     setStockItems((prev) => prev.filter((i) => i.id !== itemId));
-    deleteStockItemFromDB(itemId);
-    showToast('تم حذف الصنف', 'تمت إزالة القطعة من سجل المخزون.', 'info');
+    deleteStockItemFromDB(itemId, itemToDelete?.imageUrl);
+    showToast('تم حذف الصنف', 'تمت إزالة القطعة ومرفقاتها من سجل المخزون وقاعدة البيانات.', 'info');
   };
 
   // Reset to default
@@ -826,9 +824,9 @@ export default function App() {
       {isResetModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-150" dir="rtl">
           <div className="bg-white border border-slate-200 rounded-2xl p-5 max-w-sm w-full shadow-xl text-right">
-            <h3 className="text-base font-bold text-slate-900 mb-2">استعادة المخزون النموذجي؟</h3>
+            <h3 className="text-base font-bold text-slate-900 mb-2">مسح وحذف كافة البيانات نهائياً؟</h3>
             <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-              سيتم استعادة الأصناف والكميات الافتراضية لورشة الميكانيكا ومسح الحركات المحلية.
+              سيتم حذف جميع أصناف المخزون وسجل الحركات والصور المرفوعة نهائياً من قاعدة البيانات والسحابة والبدء بمخزون فارغ تماماً.
             </p>
             <div className="flex items-center justify-end gap-2.5">
               <button
@@ -842,7 +840,7 @@ export default function App() {
                 onClick={confirmResetData}
                 className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-600/20 cursor-pointer transition-colors"
               >
-                تأكيد الاستعادة
+                تأكيد الحذف الشامل
               </button>
             </div>
           </div>

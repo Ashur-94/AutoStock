@@ -52,60 +52,8 @@ app.post("/api/parse-invoice", async (req, res) => {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      // Return a simulated structured response if API key is not yet set in environment
-      return res.status(200).json({
-        supplierName: "شركة الأوتوزون التجارية",
-        invoiceNumber: `INV-${Math.floor(100000 + Math.random() * 900000)}`,
-        invoiceDate: new Date().toISOString().split("T")[0],
-        totalAmount: 384.5,
-        currency: "USD",
-        summary: "تم استخراج 4 أصناف قطع غيار ومستلزمات بنجاح من صورة الفاتورة.",
-        items: [
-          {
-            partNumber: "MOB-5W30-SYN",
-            name: "زيت موبيل 1 تخليقي بالكامل 5W-30 (جالون 5 لتر)",
-            category: "زيوت وسوائل",
-            quantity: 12,
-            unitCost: 24.5,
-            suggestedSellingPrice: 38.0,
-            unit: "جالون",
-            locationSuggestion: "المسار 1 - رف الزيوت أ",
-            notes: "كرتونة 12 جالون",
-          },
-          {
-            partNumber: "BOSCH-3323",
-            name: "فلتر زيت محرك بوش بريميوم 3323",
-            category: "فلاتر وترشيح",
-            quantity: 10,
-            unitCost: 6.2,
-            suggestedSellingPrice: 12.5,
-            unit: "قطعة",
-            locationSuggestion: "الرف ب-3",
-            notes: "فلتر ترشيح عالي الكفاءة",
-          },
-          {
-            partNumber: "BRM-P83024N",
-            name: "طقم فحمات فرامل أمامية سيراميك بريمبو",
-            category: "فرامل ودسكات",
-            quantity: 4,
-            unitCost: 32.0,
-            suggestedSellingPrice: 58.0,
-            unit: "طقم",
-            locationSuggestion: "خزانة الفرامل 2",
-            notes: "يشمل كلبسات التثبيت المعدنية",
-          },
-          {
-            partNumber: "CRC-05089",
-            name: "بخاخ منظف فرامل سي آر سي براكلين الاحترافي (19 أونصة)",
-            category: "مواد ومستلزمات الورشة",
-            quantity: 24,
-            unitCost: 3.75,
-            suggestedSellingPrice: 6.99,
-            unit: "علبة بخاخ",
-            locationSuggestion: "خزانة الكيماويات - المسار 1",
-            notes: "مستلزمات الورشة الأساسية",
-          },
-        ],
+      return res.status(400).json({
+        error: "مفتاح Gemini API غير متاح في الخادم. يرجى التأكد من إعداد GEMINI_API_KEY للتعرف على الفواتير الحقيقية.",
       });
     }
 

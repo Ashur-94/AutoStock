@@ -58,16 +58,3 @@ export interface StockTransaction {
   invoiceNumber?: string;
 }
 
-export interface SampleInvoicePreset {
-  id: string;
-  name: string;
-  supplier: string;
-  invoiceNumber: string;
-  date: string;
-  total: number;
-  itemCount: number;
-  description: string;
-  imageDataUrl?: string;
-  sampleItems: InvoiceExtractedItem[];
-}
-

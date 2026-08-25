@@ -113,6 +113,56 @@ export async function listBucketFiles(
 }
 
 /**
+ * Delete a specific file from the bucket (by full storage path or public URL)
+ */
+export async function deleteBucketFile(
+  urlOrPath: string,
+  bucket: string = DEFAULT_BUCKET_NAME
+): Promise<void> {
+  if (!urlOrPath) return;
+  try {
+    const supabase = getSupabaseClient();
+    let path = urlOrPath;
+    if (urlOrPath.includes(`/storage/v1/object/public/${bucket}/`)) {
+      path = urlOrPath.split(`/storage/v1/object/public/${bucket}/`)[1];
+    } else if (urlOrPath.includes(`${bucket}/`)) {
+      path = urlOrPath.substring(urlOrPath.indexOf(`${bucket}/`) + bucket.length + 1);
+    }
+    if (path) {
+      await supabase.storage.from(bucket).remove([path]);
+    }
+  } catch (err) {
+    console.warn('Supabase bucket delete file error:', err);
+  }
+}
+
+/**
+ * Delete all files from the storage bucket
+ */
+export async function deleteAllBucketFiles(bucket: string = DEFAULT_BUCKET_NAME): Promise<void> {
+  try {
+    const supabase = getSupabaseClient();
+    // List & remove in invoices/ folder
+    const { data: invoiceFiles } = await supabase.storage.from(bucket).list('invoices', { limit: 1000 });
+    if (invoiceFiles && invoiceFiles.length > 0) {
+      const paths = invoiceFiles.map((f) => `invoices/${f.name}`);
+      await supabase.storage.from(bucket).remove(paths);
+    }
+
+    // List & remove in root
+    const { data: rootFiles } = await supabase.storage.from(bucket).list('', { limit: 1000 });
+    if (rootFiles && rootFiles.length > 0) {
+      const paths = rootFiles.filter((f) => f.name !== '.emptyFolderPlaceholder').map((f) => f.name);
+      if (paths.length > 0) {
+        await supabase.storage.from(bucket).remove(paths);
+      }
+    }
+  } catch (err) {
+    console.warn('Supabase bucket delete all files error:', err);
+  }
+}
+
+/**
  * Supabase Database Sync Helpers
  */
 export async function fetchStockItemsFromDB(): Promise<any[] | null> {
@@ -158,10 +208,13 @@ export async function saveStockItemToDB(item: any): Promise<void> {
   }
 }
 
-export async function deleteStockItemFromDB(id: string): Promise<void> {
+export async function deleteStockItemFromDB(id: string, imageUrl?: string): Promise<void> {
   try {
     const supabase = getSupabaseClient();
     await supabase.from('stock_items').delete().eq('id', id);
+    if (imageUrl) {
+      await deleteBucketFile(imageUrl);
+    }
   } catch (err) {
     console.warn('Supabase DB delete item error:', err);
   }
@@ -170,12 +223,12 @@ export async function deleteStockItemFromDB(id: string): Promise<void> {
 export async function deleteAllStockItemsFromDB(): Promise<void> {
   try {
     const supabase = getSupabaseClient();
-    // Delete all records by not providing a filter, or a filter that matches all.
-    // .neq('id', '!!') should match all records if '!!' is not an ID.
-    const { error } = await supabase.from('stock_items').delete().neq('id', '!!-invalid-!!');
-    if (error) {
-      console.error('Error in deleteAllStockItemsFromDB:', error);
-    }
+    // Delete all stock items
+    await supabase.from('stock_items').delete().neq('id', '___NEVER_MATCH___');
+    // Delete all transactions
+    await supabase.from('stock_transactions').delete().neq('id', '___NEVER_MATCH___');
+    // Delete all storage bucket files
+    await deleteAllBucketFiles();
   } catch (err) {
     console.warn('Supabase DB delete all items error:', err);
   }

@@ -13,9 +13,8 @@ import {
   Cloud,
   ExternalLink
 } from 'lucide-react';
-import { StockItem, ParsedInvoiceResult, SampleInvoicePreset } from '../types';
-import { SAMPLE_INVOICE_PRESETS, normalizeCategory } from '../data/defaultStock';
-import { generateInvoiceMockupImage } from '../utils/sampleInvoiceCanvas';
+import { StockItem, ParsedInvoiceResult } from '../types';
+import { normalizeCategory } from '../data/defaultStock';
 import { playInvoiceAppliedSound } from '../utils/audioFeedback';
 import { uploadToSupabaseBucket } from '../utils/supabaseStorage';
 
@@ -32,7 +31,7 @@ export const InvoiceUploadModal: React.FC<InvoiceUploadModalProps> = ({
   stockCatalog,
   onApplyInvoiceItems,
 }) => {
-  const [activeTab, setActiveTab] = useState<'upload' | 'camera' | 'sample'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'camera'>('upload');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState<string>('');
@@ -136,15 +135,6 @@ export const InvoiceUploadModal: React.FC<InvoiceUploadModalProps> = ({
       setActiveTab('upload');
       setParsedResult(null);
     }
-  };
-
-  // Preset Sample Selection
-  const handleSelectPreset = (preset: SampleInvoicePreset) => {
-    setErrorMsg(null);
-    const generatedImage = generateInvoiceMockupImage(preset);
-    setSelectedImage(generatedImage);
-    setActiveTab('upload');
-    setParsedResult(null);
   };
 
   // AI Invoice Scanner API Call with Supabase bucket archiving
@@ -329,23 +319,6 @@ export const InvoiceUploadModal: React.FC<InvoiceUploadModalProps> = ({
                 <span className="hidden sm:inline">تصوير فوري بالكاميرا</span>
                 <span className="sm:hidden">الكاميرا</span>
               </button>
-
-              <button
-                id="tab-sample-invoices-btn"
-                onClick={() => {
-                  stopCamera();
-                  setActiveTab('sample');
-                }}
-                className={`flex-1 min-w-[90px] py-1.5 sm:py-2 px-2 sm:px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  activeTab === 'sample'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                <span className="hidden sm:inline">نماذج فواتير جاهزة للتجربة</span>
-                <span className="sm:hidden">نماذج</span>
-              </button>
             </div>
           )}
 
@@ -480,48 +453,6 @@ export const InvoiceUploadModal: React.FC<InvoiceUploadModalProps> = ({
                   <Upload className="w-4 h-4 text-amber-600" />
                   <span>فتح كاميرا الجهاز الخارجية / الهاتف</span>
                 </button>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: Test Sample Invoices */}
-          {activeTab === 'sample' && !parsedResult && (
-            <div className="space-y-4">
-              <p className="text-xs text-slate-600">
-                ليس لديك فاتورة ورقية حالياً؟ جرب مسح إحدى هذه الفواتير الواقعية لشركات قطع الغيار:
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {SAMPLE_INVOICE_PRESETS.map((preset) => (
-                  <div
-                    key={preset.id}
-                    onClick={() => handleSelectPreset(preset)}
-                    className="p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:border-amber-500 hover:bg-white transition-all cursor-pointer flex flex-col justify-between shadow-sm"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-mono font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-300" dir="ltr">
-                          {preset.invoiceNumber}
-                        </span>
-                        <span className="text-[11px] font-mono text-slate-600" dir="ltr">
-                          ${preset.total.toFixed(2)}
-                        </span>
-                      </div>
-                      <h4 className="font-bold text-xs text-slate-900 line-clamp-2">
-                        {preset.name}
-                      </h4>
-                      <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
-                        {preset.description}
-                      </p>
-                    </div>
-
-                    <div className="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px] text-amber-700 font-semibold">
-                      <span>{preset.itemCount} بنود في الفاتورة</span>
-                      <span className="flex items-center gap-1">
-                        استخدم هذه <ArrowLeft className="w-3 h-3" />
-                      </span>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
           )}

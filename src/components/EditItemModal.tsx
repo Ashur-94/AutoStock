@@ -19,7 +19,6 @@ import {
 import { StockItem } from '../types';
 import { 
   ARABIC_PART_CATEGORIES, 
-  DEFAULT_PART_PRESET_IMAGES,
   normalizeCategory 
 } from '../data/defaultStock';
 import { uploadToSupabaseBucket } from '../utils/supabaseStorage';
@@ -85,7 +84,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
         name: '',
         partNumber: '',
         category: categories[0] || 'زيوت وسوائل',
-        imageUrl: DEFAULT_PART_PRESET_IMAGES[0]?.url || '',
+        imageUrl: '',
         quantity: 10,
         minStockThreshold: 5,
         unit: 'قطعة',
@@ -95,7 +94,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
         supplier: 'شركة أوتوزون التجارية',
         notes: '',
       });
-      setCustomImageUrl(DEFAULT_PART_PRESET_IMAGES[0]?.url || '');
+      setCustomImageUrl('');
     }
     setIsCreatingCategory(false);
     setNewCategoryName('');
@@ -327,39 +326,12 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                   </button>
                 </div>
 
-                {/* Preset Image Gallery Picker */}
-                {imageInputMode === 'presets' && (
-                  <div className="pt-2">
-                    <p className="text-[10px] text-slate-500 mb-1.5">اختر صورة مناسبة لنوع القطعة:</p>
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-h-28 overflow-y-auto p-1 bg-white rounded-xl border border-slate-200 shadow-sm">
-                      {DEFAULT_PART_PRESET_IMAGES.map((preset) => (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          onClick={() => {
-                            setFormData((prev) => ({ ...prev, imageUrl: preset.url }));
-                            setCustomImageUrl(preset.url);
-                          }}
-                          className={`relative rounded-lg overflow-hidden h-12 border transition-all cursor-pointer group ${
-                            formData.imageUrl === preset.url
-                              ? 'border-amber-500 ring-2 ring-amber-500/30'
-                              : 'border-slate-200 hover:border-slate-400 opacity-75 hover:opacity-100'
-                          }`}
-                          title={preset.name}
-                        >
-                          <img
-                            src={preset.url}
-                            alt={preset.name}
-                            className="w-full h-full object-cover"
-                          />
-                          <span className="absolute inset-x-0 bottom-0 bg-slate-900/80 text-[8px] text-white truncate px-0.5 text-center">
-                            {preset.name}
-                          </span>
-                        </button>
-                      ))}
+                  {/* Preset Image Gallery Picker (REMOVED) */}
+                  {imageInputMode === 'presets' && (
+                    <div className="pt-2">
+                      <p className="text-[10px] text-slate-500 mb-1.5">لا توجد صور جاهزة متاحة.</p>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Image Error or Cloud Upload Status */}
                 {isUploadingToSupabase && (
