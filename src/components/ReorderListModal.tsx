@@ -39,7 +39,7 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
 
   const totalEstimatedReorderCost = allAlertItems.reduce((acc, item) => {
     const suggestedReorderQty = Math.max(1, (item.minStockThreshold * 2) - item.quantity);
-    return acc + (suggestedReorderQty * item.costPrice);
+    return acc + (suggestedReorderQty * item.sellingPrice);
   }, 0);
 
   const handleCopyToClipboard = () => {
@@ -56,7 +56,7 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
       items.forEach((item) => {
         const reorderQty = Math.max(1, (item.minStockThreshold * 2) - item.quantity);
         textLines.push(
-          `• [${item.partNumber}] ${item.name} | الكمية المطلوبة: ${reorderQty} ${item.unit} (المتوفر حالياً: ${item.quantity}، الحد الأدنى: ${item.minStockThreshold}) | التكلفة التقديرية: $${(reorderQty * item.costPrice).toFixed(2)}`
+          `• [${item.partNumber}] ${item.name} | الكمية المطلوبة: ${reorderQty} ${item.unit} (المتوفر حالياً: ${item.quantity}، الحد الأدنى: ${item.minStockThreshold}) | السعر التقديري: $${(reorderQty * item.sellingPrice).toFixed(2)}`
         );
       });
       textLines.push(``);
@@ -174,7 +174,7 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
               {Object.entries(groupedBySupplier).map(([supplier, items]) => {
                 const supplierSubtotal = items.reduce((acc, item) => {
                   const qty = Math.max(1, (item.minStockThreshold * 2) - item.quantity);
-                  return acc + (qty * item.costPrice);
+                  return acc + (qty * item.sellingPrice);
                 }, 0);
 
                 return (
@@ -218,7 +218,7 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
                                 {item.name}
                               </div>
                               <div className="text-[11px] text-slate-500 mt-0.5">
-                                المكان: {item.location} • سعر التكلفة: ${item.costPrice.toFixed(2)}
+                                المكان: {item.location} • سعر البيع: ${item.sellingPrice.toFixed(2)}
                               </div>
                             </div>
 

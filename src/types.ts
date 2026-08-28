@@ -56,5 +56,32 @@ export interface StockTransaction {
   timestamp: string;
   note?: string;
   invoiceNumber?: string;
+  unitPrice?: number;
+  totalPrice?: number;
+  customerName?: string;
+  paymentMethod?: string;
+}
+
+export interface PosCartItem {
+  item: StockItem;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface SaleReceipt {
+  receiptNumber: string;
+  timestamp: string;
+  items: {
+    itemId: string;
+    itemName: string;
+    partNumber: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+  }[];
+  totalAmount: number;
+  customerName?: string;
+  paymentMethod: 'CASH' | 'CARD' | 'TRANSFER' | 'CREDIT';
 }
 

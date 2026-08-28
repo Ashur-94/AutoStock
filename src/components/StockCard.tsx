@@ -6,7 +6,8 @@ import {
   Edit3, 
   CheckCircle2,
   Package,
-  Wrench
+  Wrench,
+  ShoppingCart
 } from 'lucide-react';
 import { StockItem } from '../types';
 import { getCategoryColorStyle } from '../data/defaultStock';
@@ -18,6 +19,7 @@ interface StockCardProps {
   onSetExactQuantity: (item: StockItem, newQty: number) => void;
   onEdit: (item: StockItem) => void;
   onCardClick?: (item: StockItem) => void;
+  onSellItem?: (item: StockItem) => void;
 }
 
 export const StockCard: React.FC<StockCardProps> = ({
@@ -27,6 +29,7 @@ export const StockCard: React.FC<StockCardProps> = ({
   onSetExactQuantity,
   onEdit,
   onCardClick,
+  onSellItem,
 }) => {
   const [isEditingQty, setIsEditingQty] = useState(false);
   const [tempQty, setTempQty] = useState(String(item.quantity));
@@ -173,28 +176,50 @@ export const StockCard: React.FC<StockCardProps> = ({
           </h3>
         </div>
 
-        {/* Pricing Details */}
-        <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 rounded-xl p-2.5 border border-slate-200">
-          <div className="text-right">
-            <span className="text-[10px] text-slate-500 block font-semibold">التكلفة</span>
-            <span className="font-mono font-medium text-slate-700">${item.costPrice.toFixed(2)}</span>
-          </div>
-          <div className="text-left">
-            <span className="text-[10px] text-slate-500 block font-semibold">البيع للزبون</span>
-            <span className="font-mono font-bold text-amber-600">${item.sellingPrice.toFixed(2)}</span>
-          </div>
+        {/* Pricing Details - Selling Price Only */}
+        <div className="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 border border-slate-200">
+          <span className="text-xs text-slate-600 font-bold">سعر البيع:</span>
+          <span className="font-mono font-black text-base sm:text-lg text-amber-600">
+            ${item.sellingPrice.toFixed(2)}
+          </span>
         </div>
 
-        {/* CORE MECHANIC STEPPER: Instant -/+ Quantity Adjustment */}
-        <div>
+        {/* Action Controls: Sell Item POS Button & Stepper */}
+        <div className="space-y-2">
+          
+          {/* PRIMARY POS ACTION: Sell Item Button */}
+          <button
+            id={`sell-item-btn-${item.id}`}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onSellItem) {
+                onSellItem(item);
+              } else {
+                handleDecrement(1);
+              }
+            }}
+            disabled={item.quantity <= 0}
+            className={`w-full py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-sm select-none cursor-pointer ${
+              item.quantity <= 0
+                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                : 'bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white shadow-emerald-600/25'
+            }`}
+            title={item.quantity <= 0 ? 'نفد المخزون - لا يمكن البيع' : 'بيع هذه القطعة وتسجيلها في نقطة البيع'}
+          >
+            <ShoppingCart className="w-4 h-4 shrink-0" />
+            <span>{item.quantity <= 0 ? 'نفد المخزون' : 'بيع القطعة (Sell Item)'}</span>
+          </button>
+
+          {/* Quick Quantity Adjustment Stepper */}
           <div className="flex items-center justify-between gap-2.5 bg-slate-50 rounded-2xl p-1.5 sm:p-2 border border-slate-200">
             
-            {/* Minus Button (Sell / Deduct Part) */}
+            {/* Minus Button (Deduct Part) */}
             <button
               id={`decrement-btn-${item.id}`}
               onClick={() => handleDecrement(1)}
               disabled={item.quantity <= 0}
-              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center font-bold text-lg transition-all cursor-pointer select-none ${
+              className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center font-bold text-lg transition-all cursor-pointer select-none ${
                 item.quantity <= 0
                   ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-50'
                   : 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 active:scale-95 shadow-sm'
@@ -202,13 +227,13 @@ export const StockCard: React.FC<StockCardProps> = ({
               title="خصم قطعة واحدة (-1)"
               aria-label="خصم كمية"
             >
-              <Minus className="w-5 h-5 stroke-[3]" />
+              <Minus className="w-4 h-4 stroke-[3]" />
             </button>
 
             {/* Current Quantity Display & Manual Edit */}
             <div className="flex-1 text-center">
               <span className="text-[9px] sm:text-[10px] tracking-wider text-slate-500 font-bold block">
-                الكمية الحالية
+                الكمية بالمخزن
               </span>
               {isEditingQty ? (
                 <div className="flex items-center justify-center gap-1 mt-0.5">
@@ -252,11 +277,11 @@ export const StockCard: React.FC<StockCardProps> = ({
             <button
               id={`increment-btn-${item.id}`}
               onClick={() => handleIncrement(1)}
-              className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 flex items-center justify-center font-bold text-lg transition-all active:scale-95 shadow-sm cursor-pointer select-none"
+              className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 flex items-center justify-center font-bold text-lg transition-all active:scale-95 shadow-sm cursor-pointer select-none"
               title="إضافة قطعة واحدة (+1)"
               aria-label="زيادة كمية"
             >
-              <Plus className="w-5 h-5 stroke-[3]" />
+              <Plus className="w-4 h-4 stroke-[3]" />
             </button>
 
           </div>

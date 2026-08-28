@@ -3,7 +3,7 @@ import {
   Wrench, 
   AlertTriangle, 
   Search,
-  ClipboardList
+  Store
 } from 'lucide-react';
 import { StockItem } from '../types';
 import { ARABIC_PART_CATEGORIES } from '../data/defaultStock';
@@ -13,6 +13,7 @@ interface HeaderProps {
   categories?: string[];
   onOpenInvoiceUpload: () => void;
   onOpenAddItem: () => void;
+  onOpenPos?: () => void;
   onOpenHistory?: () => void;
   onOpenReorderList?: () => void;
   onResetData?: () => void;
@@ -31,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
   categories = ARABIC_PART_CATEGORIES,
   onOpenInvoiceUpload,
   onOpenAddItem,
+  onOpenPos,
   onOpenHistory,
   onOpenReorderList,
   onResetData,
@@ -44,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSearchChange,
 }) => {
   const totalItemsCount = stockItems.reduce((acc, item) => acc + item.quantity, 0);
-  const totalStockValue = stockItems.reduce((acc, item) => acc + (item.quantity * item.costPrice), 0);
+  const totalStockValue = stockItems.reduce((acc, item) => acc + (item.quantity * item.sellingPrice), 0);
   const totalAlertCount = lowStockCount + outOfStockCount;
 
   return (
@@ -67,32 +69,22 @@ export const Header: React.FC<HeaderProps> = ({
                   {totalItemsCount} قطعة (${totalStockValue.toFixed(0)})
                 </span>
               </div>
-              <p className="text-[10px] text-slate-500 hidden lg:block">مخزون ورشة الميكانيكا وماسح الفواتير بالذكاء الاصطناعي</p>
             </div>
           </div>
 
           {/* Action Controls Bar */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             
-            {/* Reorder List Button */}
-            {onOpenReorderList && (
+            {/* Direct POS Terminal Button */}
+            {onOpenPos && (
               <button
-                id="open-reorder-list-btn"
-                onClick={onOpenReorderList}
-                className={`relative px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
-                  totalAlertCount > 0
-                    ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
-                }`}
-                title="قائمة طلبات التوريد وإعادة الطلب للموردين"
+                id="open-pos-header-btn"
+                onClick={onOpenPos}
+                className="px-3 sm:px-4 py-1.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white shadow-md shadow-emerald-600/25"
+                title="فتح نظام نقطة البيع والكاشير (POS)"
               >
-                <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                <span className="hidden md:inline">طلبات التوريد</span>
-                {totalAlertCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-600 text-white shrink-0">
-                    {totalAlertCount}
-                  </span>
-                )}
+                <Store className="w-4 h-4 shrink-0" />
+                <span>نقطة البيع (POS)</span>
               </button>
             )}
 

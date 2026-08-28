@@ -562,37 +562,24 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
             </div>
           </div>
 
-          {/* 5. Pricing: Cost vs Sell */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                سعر التكلفة ($)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.costPrice}
-                onChange={(e) => setFormData({ ...formData, costPrice: parseFloat(e.target.value) || 0 })}
-                className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 font-mono text-slate-200 text-sm focus:outline-none text-left"
-                dir="ltr"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                سعر البيع للزبون ($)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.sellingPrice}
-                onChange={(e) => setFormData({ ...formData, sellingPrice: parseFloat(e.target.value) || 0 })}
-                className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 font-mono font-bold text-amber-400 text-sm focus:outline-none text-left"
-                dir="ltr"
-              />
-            </div>
+          {/* 5. Pricing: Selling Price Only */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">
+              سعر البيع ($)
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.sellingPrice}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value) || 0;
+                setFormData({ ...formData, sellingPrice: val, costPrice: val });
+              }}
+              className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 font-mono font-bold text-amber-400 text-sm focus:outline-none text-left"
+              dir="ltr"
+              placeholder="0.00"
+            />
           </div>
 
           {/* 6. Location & Supplier */}

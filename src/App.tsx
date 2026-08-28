@@ -4,7 +4,6 @@ import {
   CheckCircle2, 
   Package, 
   Info,
-  Camera,
   PackagePlus,
   Edit3
 } from 'lucide-react';
@@ -22,6 +21,8 @@ import { ReorderListModal } from './components/ReorderListModal';
 import { TransactionHistoryModal } from './components/TransactionHistoryModal';
 import { ItemDetailModal } from './components/ItemDetailModal';
 import { CategoriesModal } from './components/CategoriesModal';
+import { QuickSellModal } from './components/QuickSellModal';
+import { PosModal } from './components/PosModal';
 import { 
   playSaleSound, 
   playRestockSound, 
@@ -156,6 +157,9 @@ export default function App() {
   const [selectedItemForDetails, setSelectedItemForDetails] = useState<StockItem | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
+  const [isPosModalOpen, setIsPosModalOpen] = useState(false);
+  const [itemForQuickSell, setItemForQuickSell] = useState<StockItem | null>(null);
+  const [itemToPreloadInPos, setItemToPreloadInPos] = useState<StockItem | null>(null);
 
   // 5. Toast Notification State
   const [toast, setToast] = useState<{ title: string; desc: string; type: 'success' | 'alert' | 'info' } | null>(null);
@@ -260,7 +264,7 @@ export default function App() {
     return stockItems.find((i) => i.id === selectedItemForDetails.id) || selectedItemForDetails;
   }, [selectedItemForDetails, stockItems]);
 
-  // Decrement handler (Sale of 1 or more parts)
+  // Decrement handler (Sale of 1 or more parts via quick stepper)
   const handleDecrement = (item: StockItem, delta = 1) => {
     const currentItem = stockItems.find((i) => i.id === item.id) || item;
     if (currentItem.quantity <= 0) return;
@@ -268,6 +272,9 @@ export default function App() {
     const previousQty = currentItem.quantity;
     const newQty = Math.max(0, currentItem.quantity - delta);
     const actualDelta = newQty - previousQty;
+    const soldCount = Math.abs(actualDelta);
+    const unitPrice = currentItem.sellingPrice;
+    const totalPrice = unitPrice * soldCount;
 
     setStockItems((prev) =>
       prev.map((i) => (i.id === item.id ? { ...i, quantity: newQty, lastUpdated: new Date().toISOString() } : i))
@@ -288,10 +295,14 @@ export default function App() {
       previousQuantity: previousQty,
       newQuantity: newQty,
       timestamp: new Date().toISOString(),
-      note: `بيع ${Math.abs(actualDelta)} ${currentItem.unit} للعميل`,
+      unitPrice,
+      totalPrice,
+      paymentMethod: 'CASH',
+      note: `بيع سريع: ${soldCount} ${currentItem.unit} للعميل`,
     };
 
     setTransactions((prev) => [newTx, ...prev].slice(0, 300));
+    saveTransactionToDB(newTx);
 
     // Audio & Alert checks
     playSaleSound();
@@ -311,6 +322,161 @@ export default function App() {
         'alert'
       );
     }
+  };
+
+  // Dedicated POS Sale Handler (from QuickSellModal or POS Terminal)
+  const handleConfirmSale = (
+    item: StockItem,
+    quantity: number,
+    paymentMethod: 'CASH' | 'CARD' | 'TRANSFER' | 'CREDIT' = 'CASH',
+    customerName?: string,
+    note?: string
+  ) => {
+    const currentItem = stockItems.find((i) => i.id === item.id) || item;
+    if (currentItem.quantity < quantity || quantity <= 0) return;
+
+    const previousQty = currentItem.quantity;
+    const newQty = Math.max(0, currentItem.quantity - quantity);
+    const actualDelta = -quantity;
+    const unitPrice = currentItem.sellingPrice;
+    const totalPrice = unitPrice * quantity;
+
+    setStockItems((prev) =>
+      prev.map((i) => (i.id === item.id ? { ...i, quantity: newQty, lastUpdated: new Date().toISOString() } : i))
+    );
+
+    setSelectedItemForDetails((prev) =>
+      prev && prev.id === item.id ? { ...prev, quantity: newQty, lastUpdated: new Date().toISOString() } : prev
+    );
+
+    const paymentLabel =
+      paymentMethod === 'CASH'
+        ? 'نقداً'
+        : paymentMethod === 'CARD'
+        ? 'بطاقة / مدى'
+        : paymentMethod === 'TRANSFER'
+        ? 'تحويل بنكي'
+        : 'آجل';
+
+    const newTx: StockTransaction = {
+      id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      itemId: currentItem.id,
+      itemName: currentItem.name,
+      partNumber: currentItem.partNumber,
+      type: 'SALE',
+      quantityDelta: actualDelta,
+      previousQuantity: previousQty,
+      newQuantity: newQty,
+      timestamp: new Date().toISOString(),
+      unitPrice,
+      totalPrice,
+      customerName,
+      paymentMethod,
+      note: note || `بيع صنف: ${quantity} ${currentItem.unit} (${paymentLabel}) ${customerName ? `- العميل: ${customerName}` : ''}`,
+    };
+
+    setTransactions((prev) => [newTx, ...prev].slice(0, 300));
+    saveTransactionToDB(newTx);
+    playSaleSound();
+
+    showToast(
+      'تم تسجيل بيع الصنف وتأكيد الخصم',
+      `تم بيع ${quantity} ${currentItem.unit} من "${currentItem.name}" (${paymentLabel}) بقيمة $${totalPrice.toFixed(2)} وخصمها من المخزون بنجاح.`,
+      'success'
+    );
+
+    if (newQty === 0) {
+      playLowStockAlertSound();
+      setTimeout(() => {
+        showToast(
+          'تنبيه حرج: نفد المخزون بالكامل!',
+          `القطعة "${currentItem.name}" (${currentItem.partNumber}) أصبحت 0! يرجى طلب توريد عاجل من المورد.`,
+          'alert'
+        );
+      }, 1200);
+    } else if (newQty <= currentItem.minStockThreshold && previousQty > currentItem.minStockThreshold) {
+      playLowStockAlertSound();
+      setTimeout(() => {
+        showToast(
+          'تنبيه: اقتراب نفاد المخزون',
+          `القطعة "${currentItem.name}" قاربت على النفاد (المتبقي ${newQty} فقط، الحد الأدنى: ${currentItem.minStockThreshold}).`,
+          'alert'
+        );
+      }, 1200);
+    }
+  };
+
+  // Multi-Item POS Terminal Checkout Handler
+  const handleCompletePosSale = (
+    itemsToSell: { item: StockItem; quantity: number }[],
+    paymentMethod: 'CASH' | 'CARD' | 'TRANSFER' | 'CREDIT',
+    customerName?: string,
+    note?: string
+  ) => {
+    if (itemsToSell.length === 0) return;
+
+    const paymentLabel =
+      paymentMethod === 'CASH'
+        ? 'نقداً'
+        : paymentMethod === 'CARD'
+        ? 'بطاقة / مدى'
+        : paymentMethod === 'TRANSFER'
+        ? 'تحويل بنكي'
+        : 'آجل';
+
+    const newTransactions: StockTransaction[] = [];
+    let totalGrandAmount = 0;
+    let totalUnitsCount = 0;
+
+    setStockItems((prev) => {
+      const updated = [...prev];
+      itemsToSell.forEach(({ item, quantity }) => {
+        const idx = updated.findIndex((i) => i.id === item.id);
+        if (idx !== -1) {
+          const prevQty = updated[idx].quantity;
+          const newQty = Math.max(0, prevQty - quantity);
+          const unitPrice = updated[idx].sellingPrice;
+          const lineTotal = unitPrice * quantity;
+          totalGrandAmount += lineTotal;
+          totalUnitsCount += quantity;
+
+          updated[idx] = {
+            ...updated[idx],
+            quantity: newQty,
+            lastUpdated: new Date().toISOString(),
+          };
+
+          const tx: StockTransaction = {
+            id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            itemId: updated[idx].id,
+            itemName: updated[idx].name,
+            partNumber: updated[idx].partNumber,
+            type: 'SALE',
+            quantityDelta: -quantity,
+            previousQuantity: prevQty,
+            newQuantity: newQty,
+            timestamp: new Date().toISOString(),
+            unitPrice,
+            totalPrice: lineTotal,
+            customerName,
+            paymentMethod,
+            note: note || `فاتورة كاشير: ${quantity} ${updated[idx].unit} (${paymentLabel}) ${customerName ? `- العميل: ${customerName}` : ''}`,
+          };
+          newTransactions.push(tx);
+          saveTransactionToDB(tx);
+        }
+      });
+      return updated;
+    });
+
+    setTransactions((prev) => [...newTransactions, ...prev].slice(0, 300));
+    playSaleSound();
+
+    showToast(
+      'تم إصدار فاتورة البيع وخصم الكميات',
+      `تم إتمام بيع ${itemsToSell.length} أصناف (${totalUnitsCount} قطعة) بإجمالي $${totalGrandAmount.toFixed(2)} بنجاح!`,
+      'success'
+    );
   };
 
   // Increment handler (Manual Restock of 1 or more parts)
@@ -525,7 +691,7 @@ export default function App() {
   }, [stockItems]);
 
   const totalStockValue = useMemo(() => {
-    return stockItems.reduce((acc, item) => acc + (item.quantity * item.costPrice), 0);
+    return stockItems.reduce((acc, item) => acc + (item.quantity * item.sellingPrice), 0);
   }, [stockItems]);
 
   // Filtered Stock Items
@@ -564,6 +730,10 @@ export default function App() {
         onOpenAddItem={() => {
           setItemToEdit(null);
           setIsAddItemModalOpen(true);
+        }}
+        onOpenPos={() => {
+          setItemToPreloadInPos(null);
+          setIsPosModalOpen(true);
         }}
         onOpenHistory={() => setIsHistoryModalOpen(true)}
         onOpenReorderList={() => setIsReorderModalOpen(true)}
@@ -679,24 +849,17 @@ export default function App() {
             </h2>
           </div>
 
-          {/* Quick Filter Status pills */}
+          {/* Action buttons */}
           <div className="flex items-center gap-2 text-xs">
             <button
               onClick={() => {
                 setItemToEdit(null);
                 setIsAddItemModalOpen(true);
               }}
-              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+              className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm shadow-amber-500/25"
             >
               <PackagePlus className="w-3.5 h-3.5" />
               <span>إضافة صنف جديد</span>
-            </button>
-            <button
-              onClick={() => setIsInvoiceModalOpen(true)}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
-            >
-              <Camera className="w-3.5 h-3.5 text-amber-600" />
-              <span>مسح فاتورة جديدة</span>
             </button>
           </div>
         </div>
@@ -740,6 +903,9 @@ export default function App() {
                 onIncrement={handleIncrement}
                 onDecrement={handleDecrement}
                 onSetExactQuantity={handleSetExactQuantity}
+                onSellItem={(itemToSell) => {
+                  setItemForQuickSell(itemToSell);
+                }}
                 onEdit={(itemToEdit) => {
                   setItemToEdit(itemToEdit);
                   setIsAddItemModalOpen(true);
@@ -767,6 +933,9 @@ export default function App() {
         onIncrement={handleIncrement}
         onDecrement={handleDecrement}
         onSetExactQuantity={handleSetExactQuantity}
+        onSellItem={(itemToSell) => {
+          setItemForQuickSell(itemToSell);
+        }}
         onEdit={(itemToEdit) => {
           setIsDetailModalOpen(false);
           setItemToEdit(itemToEdit);
@@ -851,6 +1020,33 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Quick Sell Modal (Single Item Quick Sale with payment & customer options) */}
+      <QuickSellModal
+        isOpen={!!itemForQuickSell}
+        onClose={() => setItemForQuickSell(null)}
+        item={itemForQuickSell}
+        onConfirmSale={handleConfirmSale}
+        onOpenFullPos={(itemToAdd) => {
+          setItemForQuickSell(null);
+          setItemToPreloadInPos(itemToAdd || null);
+          setIsPosModalOpen(true);
+        }}
+      />
+
+      {/* Full POS Cashier Terminal Modal (Cart, Search, Receipt & Sales Stats) */}
+      <PosModal
+        isOpen={isPosModalOpen}
+        onClose={() => {
+          setIsPosModalOpen(false);
+          setItemToPreloadInPos(null);
+        }}
+        stockItems={stockItems}
+        categories={categories}
+        transactions={transactions}
+        initialItemToAdd={itemToPreloadInPos}
+        onCompleteSale={handleCompletePosSale}
+      />
 
     </div>
   );

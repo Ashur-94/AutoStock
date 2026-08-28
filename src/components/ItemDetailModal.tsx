@@ -12,7 +12,8 @@ import {
   DollarSign, 
   Package, 
   Calendar, 
-  FileText 
+  FileText,
+  ShoppingCart
 } from 'lucide-react';
 import { StockItem } from '../types';
 import { getCategoryColorStyle } from '../data/defaultStock';
@@ -25,6 +26,7 @@ interface ItemDetailModalProps {
   onDecrement: (item: StockItem, delta?: number) => void;
   onSetExactQuantity: (item: StockItem, newQty: number) => void;
   onEdit: (item: StockItem) => void;
+  onSellItem?: (item: StockItem) => void;
 }
 
 export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
@@ -35,6 +37,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
   onDecrement,
   onSetExactQuantity,
   onEdit,
+  onSellItem,
 }) => {
   const [isEditingQty, setIsEditingQty] = useState(false);
   const [tempQty, setTempQty] = useState('');
@@ -57,8 +60,6 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
   const isOutOfStock = item.quantity === 0;
   const isLowStock = !isOutOfStock && item.quantity <= item.minStockThreshold;
   const categoryStyle = getCategoryColorStyle(item.category);
-  const profitMargin = item.sellingPrice - item.costPrice;
-  const profitPercentage = item.costPrice > 0 ? ((profitMargin / item.costPrice) * 100).toFixed(1) : '0';
 
   const handleManualQtySubmit = () => {
     const val = parseInt(tempQty, 10);
@@ -84,6 +85,24 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              id="modal-header-sell-btn"
+              type="button"
+              onClick={() => {
+                onClose();
+                if (onSellItem) onSellItem(item);
+              }}
+              disabled={item.quantity <= 0}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm ${
+                item.quantity <= 0
+                  ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+              }`}
+              title="بيع الصنف فوراً"
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />
+              <span>{item.quantity <= 0 ? 'نفد المخزون' : 'بيع القطعة (Sell)'}</span>
+            </button>
             <button
               onClick={() => {
                 onClose();
@@ -296,26 +315,34 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Direct Sell Item Action Button */}
+            <button
+              id="modal-body-sell-btn"
+              type="button"
+              onClick={() => {
+                onClose();
+                if (onSellItem) onSellItem(item);
+              }}
+              disabled={item.quantity <= 0}
+              className={`w-full py-3 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm select-none mt-2 ${
+                item.quantity <= 0
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25 active:scale-[0.99]'
+              }`}
+            >
+              <ShoppingCart className="w-4 h-4" />
+              <span>{item.quantity <= 0 ? 'نفد المخزون - غير متوفر للبيع' : 'بيع هذا الصنف للعميل (Sell Item)'}</span>
+            </button>
           </div>
 
-          {/* Pricing & Financial Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-right">
-              <span className="text-[11px] text-slate-500 font-semibold block mb-1">سعر التكلفة</span>
-              <span className="font-mono text-lg font-bold text-slate-700">${item.costPrice.toFixed(2)}</span>
+          {/* Pricing - Selling Price Only */}
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-right flex items-center justify-between">
+            <div>
+              <span className="text-xs text-slate-500 font-semibold block mb-0.5">سعر البيع للزبون</span>
+              <span className="text-[11px] text-slate-400">السعر المعتمد في الفواتير ونقاط البيع</span>
             </div>
-
-            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-right">
-              <span className="text-[11px] text-slate-500 font-semibold block mb-1">سعر البيع</span>
-              <span className="font-mono text-lg font-bold text-amber-600">${item.sellingPrice.toFixed(2)}</span>
-            </div>
-
-            <div className="bg-emerald-50/50 p-3.5 rounded-2xl border border-emerald-200 text-right">
-              <span className="text-[11px] text-emerald-700 font-semibold block mb-1">هامش الربح المتوقع</span>
-              <span className="font-mono text-lg font-bold text-emerald-800">
-                +${profitMargin.toFixed(2)} ({profitPercentage}%)
-              </span>
-            </div>
+            <span className="font-mono text-2xl font-black text-amber-600">${item.sellingPrice.toFixed(2)}</span>
           </div>
 
           {/* Location & Supplier Information */}
