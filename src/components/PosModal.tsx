@@ -5,19 +5,19 @@ import {
   ChevronLeft, 
   ChevronDown,
   Calendar as CalendarIcon, 
-  DollarSign, 
   ShoppingBag, 
   CreditCard, 
   Coins, 
   Clock, 
   User,
   Receipt,
-  Sparkles,
   CalendarDays,
   ArrowRight,
-  ArrowLeft,
-  LogOut,
-  CheckCircle2
+  Sparkles,
+  Layers,
+  History,
+  TrendingUp,
+  Tag
 } from 'lucide-react';
 import { StockTransaction, StockItem } from '../types';
 
@@ -36,6 +36,8 @@ interface PosModalProps {
   ) => void;
 }
 
+type ViewScope = 'TODAY' | 'ALL' | 'MONTH' | 'CUSTOM_DAY';
+
 const MONTH_NAMES_AR = [
   'يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو',
   'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
@@ -48,14 +50,17 @@ export const PosModal: React.FC<PosModalProps> = ({
   isOpen,
   onClose,
   transactions,
+  stockItems = [],
 }) => {
   const today = new Date();
   const [currentYear, setCurrentYear] = useState<number>(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState<number>(today.getMonth());
   const [isCalendarOpen, setIsCalendarOpen] = useState<boolean>(false);
+  const [viewScope, setViewScope] = useState<ViewScope>('ALL'); // Default to ALL or TODAY with clear toggle
   const calendarRef = useRef<HTMLDivElement>(null);
   const modalContentRef = useRef<HTMLDivElement>(null);
 
+  // Helper to format Date into YYYY-MM-DD
   const formatIsoDate = (d: Date) => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -65,6 +70,23 @@ export const PosModal: React.FC<PosModalProps> = ({
 
   const todayStr = formatIsoDate(today);
   const [selectedDateStr, setSelectedDateStr] = useState<string>(todayStr);
+
+  // Extract date string from a transaction timestamp safely
+  const getTxDateStr = (timestamp?: string): string => {
+    if (!timestamp) return todayStr;
+    try {
+      // If it has ISO format YYYY-MM-DD
+      if (timestamp.length >= 10 && timestamp.charAt(4) === '-' && timestamp.charAt(7) === '-') {
+        const rawDate = timestamp.substring(0, 10);
+        return rawDate;
+      }
+      const d = new Date(timestamp);
+      if (!isNaN(d.getTime())) {
+        return formatIsoDate(d);
+      }
+    } catch {}
+    return todayStr;
+  };
 
   // Close calendar popup on click outside
   useEffect(() => {
@@ -113,10 +135,34 @@ export const PosModal: React.FC<PosModalProps> = ({
     };
   }, [isOpen]);
 
-  // Extract all sales transactions only
+  // Extract all sales transactions comprehensively
+  // Includes type === 'SALE', 'SELL', or any transaction with negative delta that isn't a manual adjustment
   const allSales = useMemo(() => {
-    return transactions.filter((t) => t.type === 'SALE');
+    return transactions.filter((t) => {
+      const typeUpper = (t.type || '').toUpperCase();
+      return (
+        typeUpper === 'SALE' ||
+        typeUpper === 'SELL' ||
+        (t.quantityDelta < 0 && typeUpper !== 'ADJUSTMENT')
+      );
+    });
   }, [transactions]);
+
+  // Price lookup helper (if transaction didn't have totalPrice/unitPrice)
+  const getSaleAmount = (sale: StockTransaction, qty: number) => {
+    if (sale.totalPrice && sale.totalPrice > 0) return sale.totalPrice;
+    if (sale.unitPrice && sale.unitPrice > 0) return sale.unitPrice * qty;
+    // Look up item in stockItems
+    if (sale.itemId || sale.partNumber) {
+      const matched = stockItems.find(
+        (i) => (sale.itemId && i.id === sale.itemId) || (sale.partNumber && i.partNumber === sale.partNumber)
+      );
+      if (matched && matched.sellingPrice) {
+        return matched.sellingPrice * qty;
+      }
+    }
+    return 0;
+  };
 
   // Group sales by date YYYY-MM-DD
   const salesByDate = useMemo(() => {
@@ -131,17 +177,9 @@ export const PosModal: React.FC<PosModalProps> = ({
     > = {};
 
     allSales.forEach((sale) => {
-      let dateKey = todayStr;
-      if (sale.timestamp) {
-        try {
-          const d = new Date(sale.timestamp);
-          if (!isNaN(d.getTime())) {
-            dateKey = formatIsoDate(d);
-          }
-        } catch {
-          dateKey = sale.timestamp.split('T')[0] || todayStr;
-        }
-      }
+      const dateKey = getTxDateStr(sale.timestamp);
+      const qty = Math.abs(sale.quantityDelta) || 1;
+      const amount = getSaleAmount(sale, qty);
 
       if (!map[dateKey]) {
         map[dateKey] = {
@@ -152,11 +190,6 @@ export const PosModal: React.FC<PosModalProps> = ({
         };
       }
 
-      const qty = Math.abs(sale.quantityDelta) || 1;
-      const amount =
-        sale.totalPrice ||
-        (sale.unitPrice ? sale.unitPrice * qty : 0);
-
       map[dateKey].sales.push(sale);
       map[dateKey].totalRevenue += amount;
       map[dateKey].totalUnits += qty;
@@ -164,9 +197,53 @@ export const PosModal: React.FC<PosModalProps> = ({
     });
 
     return map;
-  }, [allSales, todayStr]);
+  }, [allSales, stockItems]);
 
-  // Selected date data
+  // All-time aggregate stats
+  const allTimeStats = useMemo(() => {
+    let revenue = 0;
+    let units = 0;
+    allSales.forEach((s) => {
+      const qty = Math.abs(s.quantityDelta) || 1;
+      revenue += getSaleAmount(s, qty);
+      units += qty;
+    });
+    return {
+      salesCount: allSales.length,
+      totalRevenue: revenue,
+      totalUnits: units,
+    };
+  }, [allSales, stockItems]);
+
+  // Current month stats
+  const monthPrefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+  const monthStats = useMemo(() => {
+    let revenue = 0;
+    let count = 0;
+    let units = 0;
+
+    Object.keys(salesByDate).forEach((k) => {
+      if (k.startsWith(monthPrefix)) {
+        revenue += salesByDate[k].totalRevenue;
+        count += salesByDate[k].salesCount;
+        units += salesByDate[k].totalUnits;
+      }
+    });
+
+    return { revenue, count, units };
+  }, [monthPrefix, salesByDate]);
+
+  // Today stats
+  const todayStats = useMemo(() => {
+    return salesByDate[todayStr] || {
+      sales: [],
+      totalRevenue: 0,
+      totalUnits: 0,
+      salesCount: 0,
+    };
+  }, [salesByDate, todayStr]);
+
+  // Selected date stats
   const selectedDayData = useMemo(() => {
     return salesByDate[selectedDateStr] || {
       sales: [],
@@ -176,23 +253,53 @@ export const PosModal: React.FC<PosModalProps> = ({
     };
   }, [salesByDate, selectedDateStr]);
 
-  // Current month totals
-  const monthStats = useMemo(() => {
-    const prefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
-    let revenue = 0;
-    let count = 0;
-    let units = 0;
+  // Displayed sales list depending on viewScope
+  const displayedSalesList = useMemo(() => {
+    if (viewScope === 'ALL') {
+      return allSales;
+    }
+    if (viewScope === 'TODAY') {
+      return todayStats.sales;
+    }
+    if (viewScope === 'MONTH') {
+      return allSales.filter((s) => getTxDateStr(s.timestamp).startsWith(monthPrefix));
+    }
+    return selectedDayData.sales;
+  }, [viewScope, allSales, todayStats.sales, monthPrefix, selectedDayData.sales]);
 
-    Object.keys(salesByDate).forEach((k) => {
-      if (k.startsWith(prefix)) {
-        revenue += salesByDate[k].totalRevenue;
-        count += salesByDate[k].salesCount;
-        units += salesByDate[k].totalUnits;
-      }
-    });
-
-    return { revenue, count, units };
-  }, [currentYear, currentMonth, salesByDate]);
+  // Displayed summary figures
+  const activeStats = useMemo(() => {
+    if (viewScope === 'ALL') {
+      return {
+        title: 'جميع المبيعات المسجلة',
+        revenue: allTimeStats.totalRevenue,
+        count: allTimeStats.salesCount,
+        units: allTimeStats.totalUnits,
+      };
+    }
+    if (viewScope === 'TODAY') {
+      return {
+        title: 'مبيعات اليوم',
+        revenue: todayStats.totalRevenue,
+        count: todayStats.salesCount,
+        units: todayStats.totalUnits,
+      };
+    }
+    if (viewScope === 'MONTH') {
+      return {
+        title: `مبيعات شهر ${MONTH_NAMES_AR[currentMonth]} ${currentYear}`,
+        revenue: monthStats.revenue,
+        count: monthStats.count,
+        units: monthStats.units,
+      };
+    }
+    return {
+      title: `مبيعات يوم ${selectedDateStr}`,
+      revenue: selectedDayData.totalRevenue,
+      count: selectedDayData.salesCount,
+      units: selectedDayData.totalUnits,
+    };
+  }, [viewScope, allTimeStats, todayStats, monthStats, currentMonth, currentYear, selectedDateStr, selectedDayData]);
 
   // Calendar cells generation
   const calendarDays = useMemo(() => {
@@ -222,7 +329,7 @@ export const PosModal: React.FC<PosModalProps> = ({
         dateStr,
         isCurrentMonth: false,
         isToday: dateStr === todayStr,
-        isSelected: dateStr === selectedDateStr,
+        isSelected: dateStr === selectedDateStr && viewScope === 'CUSTOM_DAY',
         salesCount: data?.salesCount || 0,
         totalRevenue: data?.totalRevenue || 0,
       });
@@ -237,7 +344,7 @@ export const PosModal: React.FC<PosModalProps> = ({
         dateStr,
         isCurrentMonth: true,
         isToday: dateStr === todayStr,
-        isSelected: dateStr === selectedDateStr,
+        isSelected: dateStr === selectedDateStr && viewScope === 'CUSTOM_DAY',
         salesCount: data?.salesCount || 0,
         totalRevenue: data?.totalRevenue || 0,
       });
@@ -256,14 +363,14 @@ export const PosModal: React.FC<PosModalProps> = ({
         dateStr,
         isCurrentMonth: false,
         isToday: dateStr === todayStr,
-        isSelected: dateStr === selectedDateStr,
+        isSelected: dateStr === selectedDateStr && viewScope === 'CUSTOM_DAY',
         salesCount: data?.salesCount || 0,
         totalRevenue: data?.totalRevenue || 0,
       });
     }
 
     return days;
-  }, [currentYear, currentMonth, salesByDate, todayStr, selectedDateStr]);
+  }, [currentYear, currentMonth, salesByDate, todayStr, selectedDateStr, viewScope]);
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -285,6 +392,7 @@ export const PosModal: React.FC<PosModalProps> = ({
 
   const handleSelectDay = (dateStr: string) => {
     setSelectedDateStr(dateStr);
+    setViewScope('CUSTOM_DAY');
     setIsCalendarOpen(false);
   };
 
@@ -293,6 +401,7 @@ export const PosModal: React.FC<PosModalProps> = ({
     setCurrentYear(now.getFullYear());
     setCurrentMonth(now.getMonth());
     setSelectedDateStr(todayStr);
+    setViewScope('TODAY');
     setIsCalendarOpen(false);
   };
 
@@ -301,24 +410,26 @@ export const PosModal: React.FC<PosModalProps> = ({
       const [y, m, d] = selectedDateStr.split('-').map(Number);
       const cur = new Date(y, m - 1, d);
       cur.setDate(cur.getDate() + delta);
-      setSelectedDateStr(formatIsoDate(cur));
+      const newStr = formatIsoDate(cur);
+      setSelectedDateStr(newStr);
       setCurrentYear(cur.getFullYear());
       setCurrentMonth(cur.getMonth());
+      setViewScope('CUSTOM_DAY');
     } catch {}
   };
 
-  // Format readable Arabic date
-  const selectedDateArabicFormatted = useMemo(() => {
+  // Format readable Arabic date for any date string
+  const formatArabicDate = (dateStr: string) => {
     try {
-      const [y, m, d] = selectedDateStr.split('-').map(Number);
+      const [y, m, d] = dateStr.split('-').map(Number);
       const dateObj = new Date(y, m - 1, d);
       const dayName = DAYS_FULL_AR[dateObj.getDay()];
       const monthName = MONTH_NAMES_AR[m - 1];
       return `${dayName}، ${d} ${monthName} ${y}`;
     } catch {
-      return selectedDateStr;
+      return dateStr;
     }
-  }, [selectedDateStr]);
+  };
 
   if (!isOpen) return null;
 
@@ -328,7 +439,6 @@ export const PosModal: React.FC<PosModalProps> = ({
       className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-150"
       dir="rtl"
       onClick={(e) => {
-        // Close modal if user clicks outside the modal content box
         if (e.target === e.currentTarget) {
           onClose();
         }
@@ -340,7 +450,7 @@ export const PosModal: React.FC<PosModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         
-        {/* TOP HEADER: Title, Date Selector Button, and PROMINENT EXIT BUTTON */}
+        {/* TOP HEADER */}
         <div className="px-4 sm:px-6 py-3.5 bg-slate-900 text-white flex items-center justify-between gap-2.5 shrink-0 relative">
           
           {/* Right/Title in RTL */}
@@ -355,7 +465,7 @@ export const PosModal: React.FC<PosModalProps> = ({
             </div>
           </div>
 
-          {/* Center & Left Controls: Date Picker Button, Nav Buttons, and Highly Visible EXIT Button */}
+          {/* Center & Left Controls: Date Picker & Exit */}
           <div className="flex items-center gap-1.5 sm:gap-2">
             
             {/* Previous Day Button */}
@@ -382,7 +492,11 @@ export const PosModal: React.FC<PosModalProps> = ({
               >
                 <CalendarIcon className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span className="truncate max-w-[130px] sm:max-w-[200px]">
-                  {selectedDateStr === todayStr ? `اليوم: ${selectedDateArabicFormatted}` : selectedDateArabicFormatted}
+                  {viewScope === 'ALL'
+                    ? `الكل (${allSales.length} مبيعات)`
+                    : viewScope === 'TODAY'
+                    ? `اليوم: ${formatArabicDate(todayStr)}`
+                    : formatArabicDate(selectedDateStr)}
                 </span>
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isCalendarOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -470,7 +584,7 @@ export const PosModal: React.FC<PosModalProps> = ({
                     })}
                   </div>
 
-                  {/* Popover Footer (Quick Today & Month Total) */}
+                  {/* Popover Footer */}
                   <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                     <button
                       onClick={handleGoToday}
@@ -496,7 +610,7 @@ export const PosModal: React.FC<PosModalProps> = ({
               <ChevronLeft className="w-4 h-4" />
             </button>
 
-            {/* CLEAR & PROMINENT TOP EXIT / CLOSE BUTTON */}
+            {/* TOP EXIT BUTTON */}
             <button
               id="pos-header-exit-btn"
               onClick={onClose}
@@ -511,88 +625,152 @@ export const PosModal: React.FC<PosModalProps> = ({
 
         </div>
 
-        {/* STATS BAR: Daily Revenue, Sales Count, Units Sold & Monthly Revenue */}
+        {/* SCOPE TABS BAR: All Sales vs Today vs Month */}
+        <div className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between gap-2 overflow-x-auto">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => setViewScope('ALL')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                viewScope === 'ALL'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>جميع المبيعات ({allSales.length})</span>
+            </button>
+
+            <button
+              onClick={() => setViewScope('TODAY')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                viewScope === 'TODAY'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+              }`}
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              <span>اليوم ({todayStats.salesCount})</span>
+            </button>
+
+            <button
+              onClick={() => setViewScope('MONTH')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                viewScope === 'MONTH'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>هذا الشهر ({monthStats.count})</span>
+            </button>
+
+            {viewScope === 'CUSTOM_DAY' && (
+              <button
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-xs flex items-center gap-1.5"
+              >
+                <CalendarIcon className="w-3.5 h-3.5" />
+                <span>يوم محدد ({selectedDayData.salesCount})</span>
+              </button>
+            )}
+          </div>
+
+          <span className="text-[11px] text-slate-500 font-medium hidden md:inline">
+            سجل المبيعات الحية والمحدثة فوراً
+          </span>
+        </div>
+
+        {/* STATS BAR: Scope Revenue, Transactions Count, Sold Units & All-Time Total */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 sm:p-4 bg-slate-50 border-b border-slate-200 shrink-0">
           
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[11px] font-semibold text-slate-500 block">إجمالي مبيعات اليوم</span>
+            <span className="text-[11px] font-semibold text-slate-500 block">
+              إجمالي مبيعات {viewScope === 'ALL' ? 'الكل' : viewScope === 'TODAY' ? 'اليوم' : viewScope === 'MONTH' ? 'الشهر' : 'اليوم المختار'}
+            </span>
             <span className="text-sm sm:text-base font-extrabold text-emerald-600 block mt-0.5">
-              ${selectedDayData.totalRevenue.toFixed(2)}
+              ${activeStats.revenue.toFixed(2)}
             </span>
           </div>
 
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[11px] font-semibold text-slate-500 block">عدد فواتير البيع</span>
+            <span className="text-[11px] font-semibold text-slate-500 block">عدد عمليات البيع</span>
             <span className="text-sm sm:text-base font-extrabold text-slate-900 block mt-0.5">
-              {selectedDayData.salesCount} عملية
+              {activeStats.count} عملية
             </span>
           </div>
 
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[11px] font-semibold text-slate-500 block">القطع المباعة اليوم</span>
+            <span className="text-[11px] font-semibold text-slate-500 block">إجمالي القطع المباعة</span>
             <span className="text-sm sm:text-base font-extrabold text-slate-900 block mt-0.5">
-              {selectedDayData.totalUnits} قطعة
+              {activeStats.units} قطعة
             </span>
           </div>
 
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[11px] font-semibold text-slate-500 block">مبيعات الشهر بالكامل</span>
+            <span className="text-[11px] font-semibold text-slate-500 block">إجمالي كافة المبيعات (الكل)</span>
             <span className="text-sm sm:text-base font-extrabold text-indigo-600 block mt-0.5">
-              ${monthStats.revenue.toFixed(2)}
+              ${allTimeStats.totalRevenue.toFixed(2)} ({allTimeStats.salesCount})
             </span>
           </div>
 
         </div>
 
-        {/* MAIN BODY: Day Selling History List */}
+        {/* MAIN BODY: List of Sales */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
           
-          {/* Header of the list with formatted date */}
+          {/* Header of the list with formatted date/scope */}
           <div className="flex items-center justify-between pb-2 border-b border-slate-200">
             <div className="flex items-center gap-2">
               <CalendarDays className="w-4 h-4 text-emerald-600" />
               <h3 className="text-sm font-bold text-slate-900">
-                مبيعات {selectedDateArabicFormatted}
+                {activeStats.title} ({displayedSalesList.length})
               </h3>
-              {selectedDateStr === todayStr && (
-                <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">
-                  اليوم
-                </span>
-              )}
             </div>
 
-            <button
-              onClick={() => setIsCalendarOpen(true)}
-              className="text-xs text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 cursor-pointer"
-            >
-              <span>تغيير التاريخ من التقويم</span>
-              <ChevronDown className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-2">
+              {viewScope !== 'ALL' && allSales.length > 0 && (
+                <button
+                  onClick={() => setViewScope('ALL')}
+                  className="text-xs text-indigo-600 hover:text-indigo-700 font-bold underline cursor-pointer"
+                >
+                  عرض جميع المبيعات ({allSales.length})
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Sales items */}
-          {selectedDayData.sales.length === 0 ? (
-            <div className="text-center py-14 text-slate-400 space-y-3">
+          {/* Sales items list */}
+          {displayedSalesList.length === 0 ? (
+            <div className="text-center py-12 text-slate-400 space-y-3 bg-slate-50/60 rounded-2xl p-6 border border-dashed border-slate-200">
               <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-300">
                 <CalendarIcon className="w-7 h-7" />
               </div>
-              <h4 className="text-sm font-bold text-slate-700">لا توجد مبيعات مسجلة في هذا اليوم</h4>
-              <p className="text-xs text-slate-500 max-w-[260px] mx-auto">
-                لم يتم تسجيل أي عملية بيع في تاريخ ({selectedDateStr}). يمكنك النقر على زر التقويم بالأعلى لاختيار يوم آخر.
-              </p>
-              <button
-                onClick={() => setIsCalendarOpen(true)}
-                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-2 shadow-sm"
-              >
-                <CalendarIcon className="w-3.5 h-3.5 text-emerald-400" />
-                <span>فتح التقويم لاختيار يوم</span>
-              </button>
+              <h4 className="text-sm font-bold text-slate-700">لا توجد مبيعات في هذا النطاق المختار</h4>
+              
+              {allSales.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-500 max-w-[320px] mx-auto">
+                    يوجد لديك <strong>{allSales.length} عملية بيع</strong> مسجلة في النظام. يمكنك التبديل إلى "جميع المبيعات" لمشاهدتها فوراً.
+                  </p>
+                  <button
+                    onClick={() => setViewScope('ALL')}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-2 shadow-sm"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>عرض كل المبيعات المسجلة ({allSales.length})</span>
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 max-w-[280px] mx-auto">
+                  لم يتم تسجيل أي عمليات بيع حتى الآن. يمكنك تسجيل بيع أي قطعة من بطاقات المخزون عبر زر البيع السريع (-).
+                </p>
+              )}
             </div>
           ) : (
             <div className="space-y-2.5">
-              {selectedDayData.sales.map((sale, idx) => {
+              {displayedSalesList.map((sale, idx) => {
                 const qty = Math.abs(sale.quantityDelta) || 1;
-                const price = sale.totalPrice || (sale.unitPrice ? sale.unitPrice * qty : 0);
+                const price = getSaleAmount(sale, qty);
+                const saleDate = getTxDateStr(sale.timestamp);
 
                 let timeStr = '';
                 if (sale.timestamp) {
@@ -611,7 +789,7 @@ export const PosModal: React.FC<PosModalProps> = ({
                   >
                     {/* Left: Product Info */}
                     <div className="space-y-1 min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
                           {sale.itemName || 'قطعة مباعة'}
                         </h4>
@@ -620,6 +798,9 @@ export const PosModal: React.FC<PosModalProps> = ({
                             {sale.partNumber}
                           </span>
                         )}
+                        <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold shrink-0">
+                          {saleDate}
+                        </span>
                       </div>
 
                       <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
@@ -676,7 +857,7 @@ export const PosModal: React.FC<PosModalProps> = ({
 
         </div>
 
-        {/* BOTTOM FOOTER BAR: DEDICATED EXIT & RETURN TO APP BUTTON */}
+        {/* BOTTOM FOOTER BAR */}
         <div className="p-3 sm:p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
           <div className="text-xs text-slate-500 hidden sm:block">
             يمكنك أيضاً الضغط على زر <kbd className="px-1.5 py-0.5 rounded bg-slate-200 border border-slate-300 font-mono text-[10px] text-slate-700">ESC</kbd> أو النقر خارج النافذة للرجوع.

@@ -327,16 +327,20 @@ export async function saveTransactionToDB(tx: any): Promise<void> {
     const supabase = getSupabaseClient();
     const payload = {
       id: tx.id,
-      item_id: tx.itemId,
-      item_name: tx.itemName,
-      part_number: tx.partNumber,
-      type: tx.type,
-      quantity_delta: tx.quantityDelta,
-      previous_quantity: tx.previousQuantity,
-      new_quantity: tx.newQuantity,
-      timestamp: tx.timestamp,
+      item_id: tx.itemId || tx.item_id,
+      item_name: tx.itemName || tx.item_name,
+      part_number: tx.partNumber || tx.part_number,
+      type: (tx.type || 'SALE').toUpperCase(),
+      quantity_delta: tx.quantityDelta ?? tx.quantity_delta,
+      previous_quantity: tx.previousQuantity ?? tx.previous_quantity,
+      new_quantity: tx.newQuantity ?? tx.new_quantity,
+      unit_price: tx.unitPrice ?? tx.unit_price ?? 0,
+      total_price: tx.totalPrice ?? tx.total_price ?? 0,
+      payment_method: tx.paymentMethod || tx.payment_method || 'CASH',
+      customer_name: tx.customerName || tx.customer_name || null,
+      timestamp: tx.timestamp || new Date().toISOString(),
       note: tx.note || null,
-      invoice_number: tx.invoiceNumber || null,
+      invoice_number: tx.invoiceNumber || tx.invoice_number || null,
     };
     await supabase.from('stock_transactions').upsert(payload);
   } catch (err) {

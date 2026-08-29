@@ -28,7 +28,11 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
 
   const filtered = transactions.filter((t) => {
     if (filterType === 'ALL') return true;
-    return t.type === filterType;
+    const typeUpper = (t.type || '').toUpperCase();
+    if (filterType === 'SALE') {
+      return typeUpper === 'SALE' || typeUpper === 'SELL' || (t.quantityDelta < 0 && typeUpper !== 'ADJUSTMENT');
+    }
+    return typeUpper === filterType;
   });
 
   return (

@@ -113,18 +113,22 @@ export default function App() {
 
         const dbTx = await fetchTransactionsFromDB();
         if (dbTx !== null) {
-          const mappedTx = dbTx.map((tx: any) => ({
+          const mappedTx: StockTransaction[] = dbTx.map((tx: any) => ({
             id: tx.id,
-            itemId: tx.item_id,
-            itemName: tx.item_name,
-            partNumber: tx.part_number,
-            type: tx.type,
-            quantityDelta: tx.quantity_delta,
-            previousQuantity: tx.previous_quantity,
-            newQuantity: tx.new_quantity,
-            timestamp: tx.timestamp,
-            note: tx.note,
-            invoiceNumber: tx.invoice_number,
+            itemId: tx.item_id || tx.itemId,
+            itemName: tx.item_name || tx.itemName,
+            partNumber: tx.part_number || tx.partNumber,
+            type: (tx.type || 'SALE').toUpperCase() as any,
+            quantityDelta: Number(tx.quantity_delta ?? tx.quantityDelta ?? -1),
+            previousQuantity: Number(tx.previous_quantity ?? tx.previousQuantity ?? 0),
+            newQuantity: Number(tx.new_quantity ?? tx.newQuantity ?? 0),
+            timestamp: tx.timestamp || new Date().toISOString(),
+            unitPrice: Number(tx.unit_price ?? tx.unitPrice ?? 0),
+            totalPrice: Number(tx.total_price ?? tx.totalPrice ?? 0),
+            paymentMethod: (tx.payment_method || tx.paymentMethod || 'CASH') as any,
+            customerName: tx.customer_name || tx.customerName || undefined,
+            note: tx.note || undefined,
+            invoiceNumber: tx.invoice_number || tx.invoiceNumber || undefined,
           }));
           setTransactions(mappedTx);
         }
