@@ -168,15 +168,64 @@ export async function deleteAllBucketFiles(bucket: string = DEFAULT_BUCKET_NAME)
 export async function fetchStockItemsFromDB(): Promise<any[] | null> {
   try {
     const supabase = getSupabaseClient();
-    const { data, error } = await supabase
+    
+    // 1. Try querying 'stock_items' table
+    const { data: stockData, error: stockError } = await supabase
       .from('stock_items')
       .select('*')
       .order('created_at', { ascending: false });
-    if (error) {
-      console.warn('Supabase DB fetch stock items error:', error.message);
-      return null;
+
+    if (!stockError && stockData && stockData.length > 0) {
+      return stockData.map((item: any) => ({
+        id: item.id || `item_${item.part_number || Date.now()}`,
+        part_number: item.part_number || item.partNumber || item.sku || '',
+        name: item.name || item.item_name || 'قطعة بدون اسم',
+        category: item.category || item.category_id || 'زيوت وسوائل',
+        image_url: item.image_url || item.imageUrl || null,
+        quantity: typeof item.quantity === 'number' ? item.quantity : Number(item.quantity || 0),
+        min_stock_threshold: typeof item.min_stock_threshold === 'number' ? item.min_stock_threshold : Number(item.min_stock_threshold || 5),
+        unit: item.unit || 'قطعة',
+        cost_price: Number(item.cost_price ?? item.costPrice ?? 0),
+        selling_price: Number(item.selling_price ?? item.sellingPrice ?? 0),
+        location: item.location || 'رف عام',
+        supplier: item.supplier || item.supplier_name || '',
+        last_updated: item.last_updated || item.updated_at || new Date().toISOString(),
+        notes: item.notes || '',
+        created_at: item.created_at || new Date().toISOString(),
+      }));
     }
-    return data;
+
+    // 2. Fallback: Try querying 'inventory_items' table
+    const { data: invData, error: invError } = await supabase
+      .from('inventory_items')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!invError && invData && invData.length > 0) {
+      return invData.map((item: any) => ({
+        id: item.id || `item_${item.part_number || Date.now()}`,
+        part_number: item.part_number || item.partNumber || item.sku || '',
+        name: item.name || item.item_name || 'قطعة بدون اسم',
+        category: item.category || item.category_id || 'زيوت وسوائل',
+        image_url: item.image_url || item.imageUrl || null,
+        quantity: typeof item.quantity === 'number' ? item.quantity : Number(item.quantity || 0),
+        min_stock_threshold: typeof item.min_stock_threshold === 'number' ? item.min_stock_threshold : Number(item.min_stock_threshold || 5),
+        unit: item.unit || 'قطعة',
+        cost_price: Number(item.cost_price ?? item.costPrice ?? 0),
+        selling_price: Number(item.selling_price ?? item.sellingPrice ?? 0),
+        location: item.location || 'رف عام',
+        supplier: item.supplier || item.supplier_name || '',
+        last_updated: item.last_updated || item.updated_at || new Date().toISOString(),
+        notes: item.notes || '',
+        created_at: item.created_at || new Date().toISOString(),
+      }));
+    }
+
+    if (!stockError) return [];
+    if (!invError) return [];
+
+    console.warn('Supabase DB fetch notice:', stockError?.message || invError?.message);
+    return null;
   } catch (err) {
     console.warn('Supabase DB fetch stock items exception:', err);
     return null;
@@ -202,7 +251,27 @@ export async function saveStockItemToDB(item: any): Promise<void> {
       last_updated: item.lastUpdated || new Date().toISOString(),
       notes: item.notes || null,
     };
-    await supabase.from('stock_items').upsert(payload);
+    
+    // Save to stock_items
+    const { error: stockErr } = await supabase.from('stock_items').upsert(payload);
+    if (stockErr) {
+      // Also try inventory_items schema format
+      await supabase.from('inventory_items').upsert({
+        id: item.id,
+        part_number: item.partNumber,
+        name: item.name,
+        category_id: item.category,
+        image_url: item.imageUrl || null,
+        quantity: item.quantity,
+        min_stock_threshold: item.minStockThreshold,
+        unit: item.unit,
+        cost_price: item.costPrice,
+        selling_price: item.sellingPrice,
+        location: item.location,
+        supplier_name: item.supplier,
+        notes: item.notes || null,
+      });
+    }
   } catch (err) {
     console.warn('Supabase DB save item error:', err);
   }
@@ -211,7 +280,10 @@ export async function saveStockItemToDB(item: any): Promise<void> {
 export async function deleteStockItemFromDB(id: string, imageUrl?: string): Promise<void> {
   try {
     const supabase = getSupabaseClient();
-    await supabase.from('stock_items').delete().eq('id', id);
+    await Promise.allSettled([
+      supabase.from('stock_items').delete().eq('id', id),
+      supabase.from('inventory_items').delete().eq('id', id),
+    ]);
     if (imageUrl) {
       await deleteBucketFile(imageUrl);
     }
@@ -223,12 +295,13 @@ export async function deleteStockItemFromDB(id: string, imageUrl?: string): Prom
 export async function deleteAllStockItemsFromDB(): Promise<void> {
   try {
     const supabase = getSupabaseClient();
-    // Delete all stock items
-    await supabase.from('stock_items').delete().neq('id', '___NEVER_MATCH___');
-    // Delete all transactions
-    await supabase.from('stock_transactions').delete().neq('id', '___NEVER_MATCH___');
-    // Delete all storage bucket files
-    await deleteAllBucketFiles();
+    // Delete all stock items from both tables
+    await Promise.allSettled([
+      supabase.from('stock_items').delete().neq('id', '___NEVER_MATCH___'),
+      supabase.from('inventory_items').delete().neq('id', '___NEVER_MATCH___'),
+      supabase.from('stock_transactions').delete().neq('id', '___NEVER_MATCH___'),
+      deleteAllBucketFiles(),
+    ]);
   } catch (err) {
     console.warn('Supabase DB delete all items error:', err);
   }
