@@ -47,7 +47,7 @@ interface AdminPanelModalProps {
   onToggleSound: () => void;
 }
 
-type AdminTab = 'INVENTORY' | 'SALES_LOG' | 'REORDER' | 'SETTINGS';
+type AdminTab = 'INVENTORY' | 'SALES_LOG' | 'SETTINGS';
 
 export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   isOpen,
@@ -66,8 +66,6 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('INVENTORY');
   const [searchQuery, setSearchQuery] = useState('');
-  const [salesFilter, setSalesFilter] = useState<'ALL' | 'SALE' | 'INVOICE_RESTOCK' | 'MANUAL_RESTOCK'>('ALL');
-
   // Filtered items in admin table
   const filteredStock = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -77,22 +75,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     );
   }, [stockItems, searchQuery]);
 
-  // Low stock items
-  const lowStockItems = useMemo(() => {
-    return stockItems.filter((i) => i.quantity <= i.minStockThreshold);
-  }, [stockItems]);
-
   // All sales
   const salesTransactions = useMemo(() => {
-    return transactions.filter((t) => {
-      const typeUpper = (t.type || '').toUpperCase();
-      if (salesFilter === 'ALL') return true;
-      if (salesFilter === 'SALE') {
-        return typeUpper === 'SALE' || typeUpper === 'SELL' || t.quantityDelta < 0;
-      }
-      return typeUpper === salesFilter;
-    });
-  }, [transactions, salesFilter]);
+    return transactions;
+  }, [transactions]);
 
   // Total sales revenue
   const totalSalesRevenue = useMemo(() => {
@@ -176,18 +162,6 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
           >
             <Receipt className="w-3.5 h-3.5 text-blue-400" />
             <span>سجل العمليات ({transactions.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('REORDER')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              activeTab === 'REORDER'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
-            }`}
-          >
-            <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
-            <span>النواقص ({lowStockItems.length})</span>
           </button>
 
           <button
@@ -334,51 +308,21 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
           {/* TAB 2: SALES & TRANSACTIONS LOG */}
           {activeTab === 'SALES_LOG' && (
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-bold text-slate-700">تصفية السجل:</span>
-                  <button
-                    onClick={() => setSalesFilter('ALL')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                      salesFilter === 'ALL' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    الكل ({transactions.length})
-                  </button>
-                  <button
-                    onClick={() => setSalesFilter('SALE')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                      salesFilter === 'SALE' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    مبيعات فقط
-                  </button>
-                  <button
-                    onClick={() => setSalesFilter('INVOICE_RESTOCK')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                      salesFilter === 'INVOICE_RESTOCK' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    توريد فواتير
-                  </button>
+              <div className="flex items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
+                <div className="font-mono text-xs font-bold text-emerald-700">
+                  إجمالي الإيراد: {Math.round(totalSalesRevenue)}
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-3">
-                  <div className="text-left font-mono text-xs font-bold text-emerald-700">
-                    إجمالي الإيراد: {Math.round(totalSalesRevenue)}
-                  </div>
-
-                  {onOpenSalesCalendar && (
-                    <button
-                      onClick={onOpenSalesCalendar}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0"
-                      title="فتح تقويم المبيعات والإيرادات اليومية"
-                    >
-                      <CalendarDays className="w-3.5 h-3.5" />
-                      <span>تقويم المبيعات</span>
-                    </button>
-                  )}
-                </div>
+                {onOpenSalesCalendar && (
+                  <button
+                    onClick={onOpenSalesCalendar}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0"
+                    title="فتح تقويم المبيعات والإيرادات اليومية"
+                  >
+                    <CalendarDays className="w-3.5 h-3.5" />
+                    <span>تقويم المبيعات</span>
+                  </button>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -424,44 +368,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
             </div>
           )}
 
-          {/* TAB 4: REORDER & LOW STOCK */}
-          {activeTab === 'REORDER' && (
-            <div className="space-y-4">
-              <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-2xl text-xs text-amber-900">
-                <strong>تنبيه النواقص:</strong> هذه القطع وصلت للحد الأدنى للمخزون أو نفدت تماماً ويجب طلبها من الموردين.
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {lowStockItems.length === 0 ? (
-                  <div className="col-span-2 p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-xs">
-                    جميع الأصناف متوفرة بكفاية ولا توجد نواقص حالياً!
-                  </div>
-                ) : (
-                  lowStockItems.map((item) => (
-                    <div key={item.id} className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between gap-3">
-                      <div>
-                        <h4 className="font-bold text-slate-900 text-xs">{item.name}</h4>
-                        <span className="text-[10px] font-mono text-slate-500">{item.partNumber}</span>
-                        <div className="mt-1 text-[11px] text-rose-600 font-bold">
-                          المتبقي: {item.quantity} (الحد: {item.minStockThreshold})
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => onIncrementStock(item, 5)}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 cursor-pointer"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>توريد +5</span>
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 5: DATABASE & SETTINGS */}
+          {/* TAB 3: DATABASE & SETTINGS */}
           {activeTab === 'SETTINGS' && (
             <div className="space-y-6 max-w-xl mx-auto py-4">
               
