@@ -180,7 +180,7 @@ export const StockCard: React.FC<StockCardProps> = ({
         <div className="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 border border-slate-200">
           <span className="text-xs text-slate-600 font-bold">سعر البيع:</span>
           <span className="font-mono font-black text-base sm:text-lg text-amber-600">
-            ${item.sellingPrice.toFixed(2)}
+            {item.sellingPrice.toFixed(2)}
           </span>
         </div>
 

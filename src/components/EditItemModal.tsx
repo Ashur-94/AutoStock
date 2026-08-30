@@ -565,7 +565,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
           {/* 5. Pricing: Selling Price Only */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1">
-              سعر البيع ($)
+              سعر البيع
             </label>
             <input
               type="number"

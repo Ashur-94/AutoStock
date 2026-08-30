@@ -572,7 +572,7 @@ export const PosModal: React.FC<PosModalProps> = ({
                                   : 'text-emerald-700 bg-emerald-200/60'
                               }`}
                             >
-                              ${day.totalRevenue.toFixed(0)}
+                              {day.totalRevenue.toFixed(0)}
                             </span>
                           )}
 
@@ -593,7 +593,7 @@ export const PosModal: React.FC<PosModalProps> = ({
                       الانتقال لليوم
                     </button>
                     <span className="text-[11px] text-slate-500 font-medium">
-                      مبيعات الشهر: <strong className="text-slate-800">${monthStats.revenue.toFixed(2)}</strong>
+                      مبيعات الشهر: <strong className="text-slate-800">{monthStats.revenue.toFixed(2)}</strong>
                     </span>
                   </div>
                 </div>
@@ -687,7 +687,7 @@ export const PosModal: React.FC<PosModalProps> = ({
               إجمالي مبيعات {viewScope === 'ALL' ? 'الكل' : viewScope === 'TODAY' ? 'اليوم' : viewScope === 'MONTH' ? 'الشهر' : 'اليوم المختار'}
             </span>
             <span className="text-sm sm:text-base font-extrabold text-emerald-600 block mt-0.5">
-              ${activeStats.revenue.toFixed(2)}
+              {activeStats.revenue.toFixed(2)}
             </span>
           </div>
 
@@ -708,7 +708,7 @@ export const PosModal: React.FC<PosModalProps> = ({
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
             <span className="text-[11px] font-semibold text-slate-500 block">إجمالي كافة المبيعات (الكل)</span>
             <span className="text-sm sm:text-base font-extrabold text-indigo-600 block mt-0.5">
-              ${allTimeStats.totalRevenue.toFixed(2)} ({allTimeStats.salesCount})
+              {allTimeStats.totalRevenue.toFixed(2)} ({allTimeStats.salesCount})
             </span>
           </div>
 
@@ -836,11 +836,11 @@ export const PosModal: React.FC<PosModalProps> = ({
                     <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 shrink-0">
                       <div className="text-right sm:text-left">
                         <span className="text-sm sm:text-base font-black text-emerald-600">
-                          ${price.toFixed(2)}
+                          {price.toFixed(2)}
                         </span>
                         {sale.unitPrice && qty > 1 && (
                           <span className="text-[11px] text-slate-400 block">
-                            (${sale.unitPrice.toFixed(2)} × {qty})
+                            ({sale.unitPrice.toFixed(2)} × {qty})
                           </span>
                         )}
                       </div>

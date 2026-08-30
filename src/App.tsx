@@ -1,28 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
+  Package, 
   AlertTriangle, 
   CheckCircle2, 
-  Package, 
-  Info,
-  PackagePlus,
-  Edit3
+  Info, 
+  Plus, 
+  ShoppingCart,
+  X,
+  Sparkles,
+  Settings
 } from 'lucide-react';
-import { StockItem, StockTransaction, ParsedInvoiceResult } from './types';
-import { 
-  ARABIC_PART_CATEGORIES, 
-  normalizeCategory 
-} from './data/defaultStock';
+import { StockItem, StockTransaction, PosCartItem, ParsedInvoiceResult } from './types';
 import { Header } from './components/Header';
-import { LowStockBanner } from './components/LowStockBanner';
-import { StockCard } from './components/StockCard';
-import { InvoiceUploadModal } from './components/InvoiceUploadModal';
+import { CashierCart } from './components/CashierCart';
+import { CashierItemTile } from './components/CashierItemTile';
+import { AdminPanelModal } from './components/AdminPanelModal';
 import { EditItemModal } from './components/EditItemModal';
-import { ReorderListModal } from './components/ReorderListModal';
-import { TransactionHistoryModal } from './components/TransactionHistoryModal';
-import { ItemDetailModal } from './components/ItemDetailModal';
-import { CategoriesModal } from './components/CategoriesModal';
-import { QuickSellModal } from './components/QuickSellModal';
-import { PosModal } from './components/PosModal';
+import { InvoiceUploadModal } from './components/InvoiceUploadModal';
 import { 
   playSaleSound, 
   playRestockSound, 
@@ -41,26 +35,9 @@ import {
 const STOCK_STORAGE_KEY = 'autostock_inventory_data_v3_ar';
 const TRANSACTION_STORAGE_KEY = 'autostock_transactions_data_v2_ar';
 const SOUND_STORAGE_KEY = 'autostock_sound_pref_v1';
-const CATEGORIES_STORAGE_KEY = 'autostock_categories_data_v1_ar';
 
 export default function App() {
-  // 1. Categories State (Default + User Custom Categories)
-  const [categories, setCategories] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(CATEGORIES_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return Array.from(new Set([...ARABIC_PART_CATEGORIES, ...parsed]));
-        }
-      }
-      return ARABIC_PART_CATEGORIES;
-    } catch {
-      return ARABIC_PART_CATEGORIES;
-    }
-  });
-
-  // 2. Core Stock State
+  // 1. Core Stock State
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
 
   // 2. Transaction Activity Logs
@@ -73,9 +50,49 @@ export default function App() {
     }
   });
 
-  // Load from Supabase DB on mount
+  // 3. Cashier Cart State
+  const [cart, setCart] = useState<PosCartItem[]>([]);
+  const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+  const [lastReceipt, setLastReceipt] = useState<{
+    receiptNumber: string;
+    items: { itemName: string; quantity: number; unitPrice: number; totalPrice: number }[];
+    totalAmount: number;
+    paymentMethod: string;
+    customerName?: string;
+    timestamp: string;
+  } | null>(null);
+
+  // 4. UI Filters & Search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(SOUND_STORAGE_KEY);
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+
+  // 5. Modals State
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
+  const [itemToEdit, setItemToEdit] = useState<StockItem | null>(null);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+
+  // 6. Toast Notification State
+  const [toast, setToast] = useState<{ title: string; desc: string; type: 'success' | 'alert' | 'info' } | null>(null);
+
+  const showToast = (title: string, desc: string, type: 'success' | 'alert' | 'info' = 'success') => {
+    setToast({ title, desc, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 4000);
+  };
+
+  // Load Initial Stock & Transactions from Supabase DB on mount
   useEffect(() => {
-    async function loadFromSupabase() {
+    async function loadData() {
       try {
         const dbItems = await fetchStockItemsFromDB();
         if (dbItems !== null && dbItems.length > 0) {
@@ -83,17 +100,17 @@ export default function App() {
             id: item.id,
             partNumber: item.part_number,
             name: item.name,
-            category: item.category,
-            imageUrl: item.image_url,
+            category: item.category || 'عام',
+            imageUrl: item.image_url || '',
             quantity: item.quantity,
-            minStockThreshold: item.min_stock_threshold,
-            unit: item.unit,
-            costPrice: Number(item.cost_price),
-            sellingPrice: Number(item.selling_price),
-            location: item.location,
-            supplier: item.supplier,
-            lastUpdated: item.last_updated,
-            notes: item.notes,
+            minStockThreshold: item.min_stock_threshold || 3,
+            unit: item.unit || 'قطعة',
+            costPrice: Number(item.cost_price || 0),
+            sellingPrice: Number(item.selling_price || 0),
+            location: item.location || '',
+            supplier: item.supplier || '',
+            lastUpdated: item.last_updated || new Date().toISOString(),
+            notes: item.notes || '',
             createdAt: item.created_at,
           })).sort((a: any, b: any) => {
             const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -133,49 +150,13 @@ export default function App() {
           setTransactions(mappedTx);
         }
       } catch (err) {
-        console.warn('Could not load from Supabase DB, using local state:', err);
+        console.warn('Could not load from Supabase, using local fallback:', err);
       }
     }
-    loadFromSupabase();
+    loadData();
   }, []);
 
-  // 3. UI Filters & Preferences
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<string>('ALL');
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem(SOUND_STORAGE_KEY);
-      return saved !== null ? JSON.parse(saved) : true;
-    } catch {
-      return true;
-    }
-  });
-
-  // 4. Modal States
-  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
-  const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [isReorderModalOpen, setIsReorderModalOpen] = useState(false);
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const [itemToEdit, setItemToEdit] = useState<StockItem | null>(null);
-  const [selectedItemForDetails, setSelectedItemForDetails] = useState<StockItem | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
-  const [isPosModalOpen, setIsPosModalOpen] = useState(false);
-  const [itemForQuickSell, setItemForQuickSell] = useState<StockItem | null>(null);
-  const [itemToPreloadInPos, setItemToPreloadInPos] = useState<StockItem | null>(null);
-
-  // 5. Toast Notification State
-  const [toast, setToast] = useState<{ title: string; desc: string; type: 'success' | 'alert' | 'info' } | null>(null);
-
-  const showToast = (title: string, desc: string, type: 'success' | 'alert' | 'info' = 'success') => {
-    setToast({ title, desc, type });
-    setTimeout(() => {
-      setToast(null);
-    }, 4500);
-  };
-
-  // Sync to LocalStorage & Supabase DB
+  // Sync to LocalStorage & Supabase
   useEffect(() => {
     try {
       localStorage.setItem(STOCK_STORAGE_KEY, JSON.stringify(stockItems));
@@ -186,14 +167,6 @@ export default function App() {
       console.error('Failed to persist stock:', e);
     }
   }, [stockItems]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
-    } catch (e) {
-      console.error('Failed to persist categories:', e);
-    }
-  }, [categories]);
 
   useEffect(() => {
     try {
@@ -215,234 +188,134 @@ export default function App() {
     }
   }, [soundEnabled]);
 
-  // Add custom category
-  const handleAddCategory = (newCat: string) => {
-    const trimmed = newCat.trim();
-    if (!trimmed) return;
-    if (!categories.includes(trimmed)) {
-      setCategories((prev) => [...prev, trimmed]);
-      showToast('تمت إضافة تصنيف جديد', `تمت إضافة التصنيف "${trimmed}" بنجاح إلى أقسام المخزون.`, 'success');
-    }
+  // Filtered Stock Items for the Grid (Pure Full Items Grid with Search)
+  const filteredItems = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return stockItems;
+    return stockItems.filter(
+      (item) =>
+        item.name.toLowerCase().includes(q) ||
+        item.partNumber.toLowerCase().includes(q) ||
+        (item.location && item.location.toLowerCase().includes(q)) ||
+        (item.supplier && item.supplier.toLowerCase().includes(q))
+    );
+  }, [stockItems, searchQuery]);
+
+  // Cart Metrics
+  const cartCount = useMemo(() => cart.reduce((acc, item) => acc + item.quantity, 0), [cart]);
+  const cartTotalAmount = useMemo(() => cart.reduce((acc, item) => acc + item.totalPrice, 0), [cart]);
+
+  // ----------------------------------------------------
+  // CASHIER CART ACTIONS
+  // ----------------------------------------------------
+
+  // Add Item to Cart (Tap on Item in the Grid)
+  const handleAddToCart = (item: StockItem) => {
+    setLastReceipt(null); // Dismiss previous receipt if any
+    setCart((prev) => {
+      const existingIndex = prev.findIndex((ci) => ci.item.id === item.id);
+      if (existingIndex >= 0) {
+        const existing = prev[existingIndex];
+        const newQty = existing.quantity + 1;
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...existing,
+          quantity: newQty,
+          totalPrice: existing.unitPrice * newQty,
+        };
+        return updated;
+      } else {
+        return [
+          ...prev,
+          {
+            item,
+            quantity: 1,
+            unitPrice: item.sellingPrice,
+            totalPrice: item.sellingPrice,
+          },
+        ];
+      }
+    });
+
+    playRestockSound();
   };
 
-  // Rename category
-  const handleRenameCategory = (oldCat: string, newCat: string) => {
-    const trimmed = newCat.trim();
-    if (!trimmed || trimmed === oldCat) return;
-    setCategories((prev) => prev.map((c) => (c === oldCat ? trimmed : c)));
-    setStockItems((prev) =>
-      prev.map((item) => (item.category === oldCat ? { ...item, category: trimmed } : item))
-    );
-    if (activeFilter === oldCat) {
-      setActiveFilter(trimmed);
+  // Update Item Quantity in Cart
+  const handleUpdateCartQuantity = (itemId: string, newQty: number) => {
+    if (newQty <= 0) {
+      handleRemoveFromCart(itemId);
+      return;
     }
-    showToast('تم تحديث القسم', `تم إعادة تسمية "${oldCat}" إلى "${trimmed}".`, 'success');
+    setCart((prev) =>
+      prev.map((ci) => {
+        if (ci.item.id === itemId) {
+          return {
+            ...ci,
+            quantity: newQty,
+            totalPrice: ci.unitPrice * newQty,
+          };
+        }
+        return ci;
+      })
+    );
   };
 
-  // Delete category
-  const handleDeleteCategory = (catToDelete: string) => {
-    if (categories.length <= 1) return;
-    const fallbackCategory = categories.find((c) => c !== catToDelete) || 'عام';
-    setCategories((prev) => prev.filter((c) => c !== catToDelete));
-    setStockItems((prev) =>
-      prev.map((item) => (item.category === catToDelete ? { ...item, category: fallbackCategory } : item))
+  // Update Item Price in Cart (Price changeable on the fly!)
+  const handleUpdateCartPrice = (itemId: string, newPrice: number) => {
+    setCart((prev) =>
+      prev.map((ci) => {
+        if (ci.item.id === itemId) {
+          return {
+            ...ci,
+            unitPrice: newPrice,
+            totalPrice: newPrice * ci.quantity,
+          };
+        }
+        return ci;
+      })
     );
-    if (activeFilter === catToDelete) {
-      setActiveFilter('ALL');
-    }
-    showToast('تم حذف القسم', `تمت إزالة القسم "${catToDelete}" ونقل قطعه إلى "${fallbackCategory}".`, 'info');
   };
 
-  // Derived low stock items
-  const outOfStockItems = useMemo(() => {
-    return stockItems.filter((i) => i.quantity === 0);
-  }, [stockItems]);
-
-  const lowStockItems = useMemo(() => {
-    return stockItems.filter((i) => i.quantity > 0 && i.quantity <= i.minStockThreshold);
-  }, [stockItems]);
-
-  // Live item for detail modal to ensure real-time sync with stock changes
-  const liveDetailItem = useMemo(() => {
-    if (!selectedItemForDetails) return null;
-    return stockItems.find((i) => i.id === selectedItemForDetails.id) || selectedItemForDetails;
-  }, [selectedItemForDetails, stockItems]);
-
-  // Decrement handler (Sale of 1 or more parts via quick stepper)
-  const handleDecrement = (item: StockItem, delta = 1) => {
-    const currentItem = stockItems.find((i) => i.id === item.id) || item;
-    if (currentItem.quantity <= 0) return;
-
-    const previousQty = currentItem.quantity;
-    const newQty = Math.max(0, currentItem.quantity - delta);
-    const actualDelta = newQty - previousQty;
-    const soldCount = Math.abs(actualDelta);
-    const unitPrice = currentItem.sellingPrice;
-    const totalPrice = unitPrice * soldCount;
-
-    setStockItems((prev) =>
-      prev.map((i) => (i.id === item.id ? { ...i, quantity: newQty, lastUpdated: new Date().toISOString() } : i))
-    );
-
-    setSelectedItemForDetails((prev) =>
-      prev && prev.id === item.id ? { ...prev, quantity: newQty, lastUpdated: new Date().toISOString() } : prev
-    );
-
-    // Record transaction
-    const newTx: StockTransaction = {
-      id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      itemId: currentItem.id,
-      itemName: currentItem.name,
-      partNumber: currentItem.partNumber,
-      type: 'SALE',
-      quantityDelta: actualDelta,
-      previousQuantity: previousQty,
-      newQuantity: newQty,
-      timestamp: new Date().toISOString(),
-      unitPrice,
-      totalPrice,
-      paymentMethod: 'CASH',
-      note: `بيع سريع: ${soldCount} ${currentItem.unit} للعميل`,
-    };
-
-    setTransactions((prev) => [newTx, ...prev].slice(0, 300));
-    saveTransactionToDB(newTx);
-
-    // Audio & Alert checks
-    playSaleSound();
-
-    if (newQty === 0) {
-      playLowStockAlertSound();
-      showToast(
-        'تنبيه حرج: نفد المخزون بالكامل!',
-        `القطعة "${currentItem.name}" (${currentItem.partNumber}) أصبحت 0! يرجى طلب توريد عاجل من المورد.`,
-        'alert'
-      );
-    } else if (newQty <= currentItem.minStockThreshold && previousQty > currentItem.minStockThreshold) {
-      playLowStockAlertSound();
-      showToast(
-        'تنبيه: اقتراب نفاد المخزون',
-        `القطعة "${currentItem.name}" قاربت على النفاد (المتبقي ${newQty} فقط، الحد الأدنى: ${currentItem.minStockThreshold}).`,
-        'alert'
-      );
-    }
+  // Remove Item from Cart
+  const handleRemoveFromCart = (itemId: string) => {
+    setCart((prev) => prev.filter((ci) => ci.item.id !== itemId));
   };
 
-  // Dedicated POS Sale Handler (from QuickSellModal or POS Terminal)
-  const handleConfirmSale = (
-    item: StockItem,
-    quantity: number,
-    paymentMethod: 'CASH' | 'CARD' | 'TRANSFER' | 'CREDIT' = 'CASH',
-    customerName?: string,
-    note?: string
-  ) => {
-    const currentItem = stockItems.find((i) => i.id === item.id) || item;
-    if (currentItem.quantity < quantity || quantity <= 0) return;
-
-    const previousQty = currentItem.quantity;
-    const newQty = Math.max(0, currentItem.quantity - quantity);
-    const actualDelta = -quantity;
-    const unitPrice = currentItem.sellingPrice;
-    const totalPrice = unitPrice * quantity;
-
-    setStockItems((prev) =>
-      prev.map((i) => (i.id === item.id ? { ...i, quantity: newQty, lastUpdated: new Date().toISOString() } : i))
-    );
-
-    setSelectedItemForDetails((prev) =>
-      prev && prev.id === item.id ? { ...prev, quantity: newQty, lastUpdated: new Date().toISOString() } : prev
-    );
-
-    const paymentLabel =
-      paymentMethod === 'CASH'
-        ? 'نقداً'
-        : paymentMethod === 'CARD'
-        ? 'بطاقة / مدى'
-        : paymentMethod === 'TRANSFER'
-        ? 'تحويل بنكي'
-        : 'آجل';
-
-    const newTx: StockTransaction = {
-      id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      itemId: currentItem.id,
-      itemName: currentItem.name,
-      partNumber: currentItem.partNumber,
-      type: 'SALE',
-      quantityDelta: actualDelta,
-      previousQuantity: previousQty,
-      newQuantity: newQty,
-      timestamp: new Date().toISOString(),
-      unitPrice,
-      totalPrice,
-      customerName,
-      paymentMethod,
-      note: note || `بيع صنف: ${quantity} ${currentItem.unit} (${paymentLabel}) ${customerName ? `- العميل: ${customerName}` : ''}`,
-    };
-
-    setTransactions((prev) => [newTx, ...prev].slice(0, 300));
-    saveTransactionToDB(newTx);
-    playSaleSound();
-
-    showToast(
-      'تم تسجيل بيع الصنف وتأكيد الخصم',
-      `تم بيع ${quantity} ${currentItem.unit} من "${currentItem.name}" (${paymentLabel}) بقيمة $${totalPrice.toFixed(2)} وخصمها من المخزون بنجاح.`,
-      'success'
-    );
-
-    if (newQty === 0) {
-      playLowStockAlertSound();
-      setTimeout(() => {
-        showToast(
-          'تنبيه حرج: نفد المخزون بالكامل!',
-          `القطعة "${currentItem.name}" (${currentItem.partNumber}) أصبحت 0! يرجى طلب توريد عاجل من المورد.`,
-          'alert'
-        );
-      }, 1200);
-    } else if (newQty <= currentItem.minStockThreshold && previousQty > currentItem.minStockThreshold) {
-      playLowStockAlertSound();
-      setTimeout(() => {
-        showToast(
-          'تنبيه: اقتراب نفاد المخزون',
-          `القطعة "${currentItem.name}" قاربت على النفاد (المتبقي ${newQty} فقط، الحد الأدنى: ${currentItem.minStockThreshold}).`,
-          'alert'
-        );
-      }, 1200);
-    }
+  // Clear Cart
+  const handleClearCart = () => {
+    setCart([]);
   };
 
-  // Multi-Item POS Terminal Checkout Handler
-  const handleCompletePosSale = (
-    itemsToSell: { item: StockItem; quantity: number }[],
+  // Complete Checkout / Sale
+  const handleCheckout = (
     paymentMethod: 'CASH' | 'CARD' | 'TRANSFER' | 'CREDIT',
     customerName?: string,
     note?: string
   ) => {
-    if (itemsToSell.length === 0) return;
+    if (cart.length === 0) return;
 
-    const paymentLabel =
-      paymentMethod === 'CASH'
-        ? 'نقداً'
-        : paymentMethod === 'CARD'
-        ? 'بطاقة / مدى'
-        : paymentMethod === 'TRANSFER'
-        ? 'تحويل بنكي'
-        : 'آجل';
-
+    const receiptNumber = `REC-${Date.now().toString().slice(-6)}`;
     const newTransactions: StockTransaction[] = [];
-    let totalGrandAmount = 0;
-    let totalUnitsCount = 0;
+    let totalSaleAmount = 0;
+    const soldReceiptItems: { itemName: string; quantity: number; unitPrice: number; totalPrice: number }[] = [];
 
+    // Deduct stock quantities and create transactions
     setStockItems((prev) => {
       const updated = [...prev];
-      itemsToSell.forEach(({ item, quantity }) => {
-        const idx = updated.findIndex((i) => i.id === item.id);
+      cart.forEach((cartItem) => {
+        const idx = updated.findIndex((i) => i.id === cartItem.item.id);
         if (idx !== -1) {
           const prevQty = updated[idx].quantity;
-          const newQty = Math.max(0, prevQty - quantity);
-          const unitPrice = updated[idx].sellingPrice;
-          const lineTotal = unitPrice * quantity;
-          totalGrandAmount += lineTotal;
-          totalUnitsCount += quantity;
+          const newQty = Math.max(0, prevQty - cartItem.quantity);
+          const lineTotal = cartItem.unitPrice * cartItem.quantity;
+          totalSaleAmount += lineTotal;
+
+          soldReceiptItems.push({
+            itemName: updated[idx].name,
+            quantity: cartItem.quantity,
+            unitPrice: cartItem.unitPrice,
+            totalPrice: lineTotal,
+          });
 
           updated[idx] = {
             ...updated[idx],
@@ -456,15 +329,15 @@ export default function App() {
             itemName: updated[idx].name,
             partNumber: updated[idx].partNumber,
             type: 'SALE',
-            quantityDelta: -quantity,
+            quantityDelta: -cartItem.quantity,
             previousQuantity: prevQty,
             newQuantity: newQty,
             timestamp: new Date().toISOString(),
-            unitPrice,
+            unitPrice: cartItem.unitPrice,
             totalPrice: lineTotal,
             customerName,
             paymentMethod,
-            note: note || `فاتورة كاشير: ${quantity} ${updated[idx].unit} (${paymentLabel}) ${customerName ? `- العميل: ${customerName}` : ''}`,
+            note: note || `بيع كاشير (${receiptNumber}): ${cartItem.quantity} ${updated[idx].unit} بسعر ${cartItem.unitPrice}`,
           };
           newTransactions.push(tx);
           saveTransactionToDB(tx);
@@ -473,28 +346,40 @@ export default function App() {
       return updated;
     });
 
-    setTransactions((prev) => [...newTransactions, ...prev].slice(0, 300));
+    setTransactions((prev) => [...newTransactions, ...prev].slice(0, 500));
     playSaleSound();
 
+    // Set Receipt
+    setLastReceipt({
+      receiptNumber,
+      items: soldReceiptItems,
+      totalAmount: totalSaleAmount,
+      paymentMethod,
+      customerName,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Clear cart
+    setCart([]);
+
     showToast(
-      'تم إصدار فاتورة البيع وخصم الكميات',
-      `تم إتمام بيع ${itemsToSell.length} أصناف (${totalUnitsCount} قطعة) بإجمالي $${totalGrandAmount.toFixed(2)} بنجاح!`,
+      'تم إتمام البيع بنجاح!',
+      `تم إصدار الفاتورة رقم ${receiptNumber} بقيمة ${totalSaleAmount.toFixed(2)} وخصم الكميات من المخزون.`,
       'success'
     );
   };
 
-  // Increment handler (Manual Restock of 1 or more parts)
-  const handleIncrement = (item: StockItem, delta = 1) => {
+  // ----------------------------------------------------
+  // ADMIN & INVENTORY ACTIONS
+  // ----------------------------------------------------
+
+  const handleIncrementStock = (item: StockItem, delta = 1) => {
     const currentItem = stockItems.find((i) => i.id === item.id) || item;
-    const previousQty = currentItem.quantity;
-    const newQty = previousQty + delta;
+    const prevQty = currentItem.quantity;
+    const newQty = prevQty + delta;
 
     setStockItems((prev) =>
       prev.map((i) => (i.id === item.id ? { ...i, quantity: newQty, lastUpdated: new Date().toISOString() } : i))
-    );
-
-    setSelectedItemForDetails((prev) =>
-      prev && prev.id === item.id ? { ...prev, quantity: newQty, lastUpdated: new Date().toISOString() } : prev
     );
 
     const newTx: StockTransaction = {
@@ -504,29 +389,25 @@ export default function App() {
       partNumber: currentItem.partNumber,
       type: 'MANUAL_RESTOCK',
       quantityDelta: delta,
-      previousQuantity: previousQty,
+      previousQuantity: prevQty,
       newQuantity: newQty,
       timestamp: new Date().toISOString(),
       note: `توريد يدوي +${delta} ${currentItem.unit}`,
     };
 
-    setTransactions((prev) => [newTx, ...prev].slice(0, 300));
+    setTransactions((prev) => [newTx, ...prev].slice(0, 500));
     playRestockSound();
+    showToast('تمت زيادة المخزون', `تمت إضافة +${delta} إلى "${currentItem.name}".`, 'info');
   };
 
-  // Set exact quantity directly
-  const handleSetExactQuantity = (item: StockItem, exactQty: number) => {
+  const handleDecrementStock = (item: StockItem, delta = 1) => {
     const currentItem = stockItems.find((i) => i.id === item.id) || item;
-    const previousQty = currentItem.quantity;
-    const actualDelta = exactQty - previousQty;
-    if (actualDelta === 0) return;
+    if (currentItem.quantity <= 0) return;
+    const prevQty = currentItem.quantity;
+    const newQty = Math.max(0, prevQty - delta);
 
     setStockItems((prev) =>
-      prev.map((i) => (i.id === item.id ? { ...i, quantity: exactQty, lastUpdated: new Date().toISOString() } : i))
-    );
-
-    setSelectedItemForDetails((prev) =>
-      prev && prev.id === item.id ? { ...prev, quantity: exactQty, lastUpdated: new Date().toISOString() } : prev
+      prev.map((i) => (i.id === item.id ? { ...i, quantity: newQty, lastUpdated: new Date().toISOString() } : i))
     );
 
     const newTx: StockTransaction = {
@@ -534,21 +415,40 @@ export default function App() {
       itemId: currentItem.id,
       itemName: currentItem.name,
       partNumber: currentItem.partNumber,
-      type: 'ADJUSTMENT',
-      quantityDelta: actualDelta,
-      previousQuantity: previousQty,
-      newQuantity: exactQty,
+      type: 'SALE',
+      quantityDelta: -delta,
+      previousQuantity: prevQty,
+      newQuantity: newQty,
       timestamp: new Date().toISOString(),
-      note: `تسوية جرد فعلي (${previousQty} ➔ ${exactQty})`,
+      unitPrice: currentItem.sellingPrice,
+      totalPrice: currentItem.sellingPrice * delta,
+      note: `خصم يدوي -${delta} ${currentItem.unit}`,
     };
 
-    setTransactions((prev) => [newTx, ...prev].slice(0, 300));
-
-    if (actualDelta > 0) playRestockSound();
-    else playSaleSound();
+    setTransactions((prev) => [newTx, ...prev].slice(0, 500));
+    playSaleSound();
   };
 
-  // Apply parsed invoice items to inventory
+  const handleSaveItem = (item: StockItem) => {
+    setStockItems((prev) => {
+      const exists = prev.some((i) => i.id === item.id);
+      if (exists) {
+        return prev.map((i) => (i.id === item.id ? item : i));
+      }
+      return [item, ...prev];
+    });
+
+    showToast('تم حفظ الصنف', `تم حفظ بيانات "${item.name}" بنجاح.`, 'success');
+  };
+
+  const handleDeleteItem = (itemId: string) => {
+    const itemToDelete = stockItems.find((i) => i.id === itemId);
+    setStockItems((prev) => prev.filter((i) => i.id !== itemId));
+    setCart((prev) => prev.filter((ci) => ci.item.id !== itemId));
+    deleteStockItemFromDB(itemId, itemToDelete?.imageUrl);
+    showToast('تم حذف الصنف', 'تمت إزالة القطعة نهائياً من المخزون.', 'info');
+  };
+
   const handleApplyInvoiceItems = (invoiceData: ParsedInvoiceResult) => {
     let totalUnitsAdded = 0;
     const newTransactions: StockTransaction[] = [];
@@ -559,7 +459,6 @@ export default function App() {
       const cleanSku = (extracted.partNumber || '').toUpperCase().trim();
       const cleanName = (extracted.name || '').toLowerCase().trim();
 
-      // Find match
       const matchIndex = updatedCatalog.findIndex(
         (c) =>
           c.id === extracted.matchedItemId ||
@@ -595,27 +494,21 @@ export default function App() {
           note: `توريد بموجب فاتورة رقم ${invoiceData.invoiceNumber} (${invoiceData.supplierName})`,
         });
       } else {
-        // Create new item with category and image support
-        const itemCat = extracted.category ? normalizeCategory(extracted.category) : 'مواد ومستلزمات الورشة';
-        if (!categories.includes(itemCat)) {
-          setCategories((prev) => [...prev, itemCat]);
-        }
-
         const newItem: StockItem = {
           id: `stk-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
           partNumber: extracted.partNumber || `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
           name: extracted.name || 'قطعة غيار جديدة',
-          category: itemCat,
-          imageUrl: extracted.imageUrl || '',
+          category: 'عام',
+          imageUrl: '',
           quantity: extracted.quantity,
-          minStockThreshold: 4,
+          minStockThreshold: 3,
           unit: extracted.unit || 'قطعة',
           costPrice: extracted.unitCost || 10.0,
-          sellingPrice: extracted.suggestedSellingPrice || Number(((extracted.unitCost || 10.0) * 1.5).toFixed(2)),
+          sellingPrice: extracted.suggestedSellingPrice || Number(((extracted.unitCost || 10.0) * 1.4).toFixed(2)),
           location: extracted.locationSuggestion || 'المستودع الرئيسي',
           supplier: invoiceData.supplierName || 'مورد قطع الغيار',
           lastUpdated: new Date().toISOString(),
-          notes: extracted.notes || `أضيفت تلقائياً عبر فاتورة ${invoiceData.invoiceNumber}`,
+          notes: extracted.notes || `توريد آلي من فاتورة ${invoiceData.invoiceNumber}`,
         };
 
         updatedCatalog.push(newItem);
@@ -637,182 +530,66 @@ export default function App() {
     });
 
     setStockItems(updatedCatalog);
-    setTransactions((prev) => [...newTransactions, ...prev].slice(0, 300));
+    setTransactions((prev) => [...newTransactions, ...prev].slice(0, 500));
 
     showToast(
-      'تم تحديث المخزون بنجاح!',
-      `تمت إضافة +${totalUnitsAdded} قطعة لعدد ${invoiceData.items.length} صنف من المورد ${invoiceData.supplierName}.`,
+      'تم توريد الفاتورة بالكامل!',
+      `تم توريد +${totalUnitsAdded} قطعة لـ ${invoiceData.items.length} أصناف بنجاح.`,
       'success'
     );
-  };
-
-  // Save edited or newly created item
-  const handleSaveItem = (item: StockItem) => {
-    // If the category is new, add it to the categories list
-    if (item.category && !categories.includes(item.category)) {
-      setCategories((prev) => [...prev, item.category]);
-    }
-
-    setStockItems((prev) => {
-      const exists = prev.some((i) => i.id === item.id);
-      if (exists) {
-        return prev.map((i) => (i.id === item.id ? item : i));
-      }
-      return [item, ...prev];
-    });
-
-    showToast('تم حفظ البيانات', `تم حفظ بيانات القطعة "${item.name}".`, 'info');
-  };
-
-  // Delete item
-  const handleDeleteItem = (itemId: string) => {
-    const itemToDelete = stockItems.find((i) => i.id === itemId);
-    setStockItems((prev) => prev.filter((i) => i.id !== itemId));
-    deleteStockItemFromDB(itemId, itemToDelete?.imageUrl);
-    showToast('تم حذف الصنف', 'تمت إزالة القطعة ومرفقاتها من سجل المخزون وقاعدة البيانات.', 'info');
-  };
-
-  // Reset to default
-  const handleResetData = () => {
-    setIsResetModalOpen(true);
-  };
-
-  const confirmResetData = () => {
-    handleForceClearAll();
   };
 
   const handleForceClearAll = async () => {
     await deleteAllStockItemsFromDB();
     setStockItems([]);
     setTransactions([]);
+    setCart([]);
     localStorage.clear();
-    window.location.reload();
+    setIsResetConfirmOpen(false);
+    showToast('تم تفريغ النظام', 'تم مسح وحذف كافة البيانات والبدء بقاعدة فارغة.', 'info');
   };
-  
-  // Overall inventory metrics
-  const totalUnitsInStock = useMemo(() => {
-    return stockItems.reduce((acc, item) => acc + item.quantity, 0);
-  }, [stockItems]);
-
-  const totalStockValue = useMemo(() => {
-    return stockItems.reduce((acc, item) => acc + (item.quantity * item.sellingPrice), 0);
-  }, [stockItems]);
-
-  // Filtered Stock Items
-  const filteredStockItems = useMemo(() => {
-    return stockItems.filter((item) => {
-      const itemCat = item.category || 'عام';
-      // Search match
-      const query = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !query ||
-        item.name.toLowerCase().includes(query) ||
-        item.partNumber.toLowerCase().includes(query) ||
-        item.location.toLowerCase().includes(query) ||
-        item.supplier.toLowerCase().includes(query) ||
-        itemCat.toLowerCase().includes(query);
-
-      if (!matchesSearch) return false;
-
-      // Filter tab match
-      if (activeFilter === 'ALL') return true;
-      if (activeFilter === 'LOW_STOCK') {
-        return item.quantity <= item.minStockThreshold;
-      }
-      return itemCat === activeFilter || normalizeCategory(itemCat) === activeFilter;
-    });
-  }, [stockItems, searchQuery, activeFilter]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950 pb-24" dir="rtl">
+    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950" dir="rtl">
       
-      {/* 1. Main Navigation Header */}
+      {/* 1. Header (Search, Stats, Admin Trigger, Sound) */}
       <Header
         stockItems={stockItems}
-        categories={categories}
-        onOpenInvoiceUpload={() => setIsInvoiceModalOpen(true)}
-        onOpenAddItem={() => {
-          setItemToEdit(null);
-          setIsAddItemModalOpen(true);
-        }}
-        onOpenPos={() => {
-          setItemToPreloadInPos(null);
-          setIsPosModalOpen(true);
-        }}
-        onOpenHistory={() => setIsHistoryModalOpen(true)}
-        onOpenReorderList={() => setIsReorderModalOpen(true)}
-        onResetData={handleResetData}
+        cartCount={cartCount}
+        cartTotalAmount={cartTotalAmount}
+        onOpenAdmin={() => setIsAdminOpen(true)}
+        onToggleMobileCart={() => setIsMobileCartOpen((prev) => !prev)}
         soundEnabled={soundEnabled}
         onToggleSound={() => setSoundEnabled((prev) => !prev)}
-        lowStockCount={lowStockItems.length}
-        outOfStockCount={outOfStockItems.length}
-        activeFilter={activeFilter}
-        onSelectFilter={setActiveFilter}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        onQuickAddItem={() => {
+          setItemToEdit(null);
+          setIsEditItemModalOpen(true);
+        }}
       />
 
-      {/* 2. Key Metrics Summary Bar (Below the Header - Responsive on Mobile & Desktop) */}
-      <section className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-4" aria-label="إحصائيات المخزون">
-        <div className="grid grid-cols-3 gap-2 sm:gap-4 bg-white border border-slate-200 rounded-2xl p-2.5 sm:p-4 text-right shadow-sm">
-          <div className="min-w-0">
-            <span className="text-slate-500 block text-[10px] sm:text-xs font-semibold truncate">
-              إجمالي الأصناف (SKU)
-            </span>
-            <span className="font-mono font-bold text-xs sm:text-lg text-slate-900 mt-0.5 sm:mt-1 block truncate">
-              {stockItems.length} <span className="text-[10px] sm:text-xs font-normal text-slate-500 font-sans">صنف</span>
-            </span>
-          </div>
-
-          <div className="min-w-0 pr-2 sm:pr-4 border-r border-slate-200">
-            <span className="text-slate-500 block text-[10px] sm:text-xs font-semibold truncate">
-              إجمالي القطع بالمخزن
-            </span>
-            <span className="font-mono font-bold text-xs sm:text-lg text-emerald-600 mt-0.5 sm:mt-1 block truncate">
-              {totalUnitsInStock} <span className="text-[10px] sm:text-xs font-normal text-slate-500 font-sans">قطعة</span>
-            </span>
-          </div>
-
-          <div className="min-w-0 pr-2 sm:pr-4 border-r border-slate-200">
-            <span className="text-slate-500 block text-[10px] sm:text-xs font-semibold truncate">
-              القيمة الإجمالية للمخزون
-            </span>
-            <span className="font-mono font-bold text-xs sm:text-lg text-amber-600 mt-0.5 sm:mt-1 block truncate">
-              ${totalStockValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. Low-Stock Alert Strip */}
-      <LowStockBanner
-        lowStockItems={lowStockItems}
-        outOfStockItems={outOfStockItems}
-        onFilterLowStock={() => setActiveFilter('LOW_STOCK')}
-        onOpenReorderList={() => setIsReorderModalOpen(true)}
-      />
-
-      {/* 3. Toast Alert Notification */}
+      {/* 2. Toast Alert Notification */}
       {toast && (
-        <div className="fixed top-16 sm:top-20 left-3 right-3 sm:right-auto sm:left-4 z-50 max-w-[calc(100vw-1.5rem)] sm:max-w-md animate-in slide-in-from-top-4 duration-300" dir="rtl">
+        <div className="fixed top-16 left-3 right-3 sm:right-auto sm:left-4 z-50 max-w-md animate-in slide-in-from-top-4 duration-300" dir="rtl">
           <div
-            className={`p-3.5 sm:p-4 rounded-2xl border shadow-xl backdrop-blur-md flex items-start gap-2.5 sm:gap-3 ${
+            className={`p-4 rounded-2xl border shadow-xl backdrop-blur-md flex items-start gap-3 ${
               toast.type === 'alert'
-                ? 'bg-rose-50 border-rose-300 text-rose-900 shadow-rose-100'
+                ? 'bg-rose-50 border-rose-300 text-rose-900'
                 : toast.type === 'success'
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-emerald-100'
-                : 'bg-white border-amber-300 text-slate-900 shadow-amber-100'
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                : 'bg-white border-amber-300 text-slate-900'
             }`}
           >
             {toast.type === 'alert' ? (
-              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-rose-600 shrink-0 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
             ) : toast.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
             ) : (
-              <Info className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 shrink-0 mt-0.5" />
+              <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             )}
             <div className="flex-1 min-w-0 text-right">
-              <h4 className="font-bold text-xs sm:text-sm truncate">{toast.title}</h4>
+              <h4 className="font-bold text-xs sm:text-sm">{toast.title}</h4>
               <p className="text-[11px] sm:text-xs text-slate-600 mt-0.5 line-clamp-2">{toast.desc}</p>
             </div>
             <button
@@ -825,128 +602,140 @@ export default function App() {
         </div>
       )}
 
-      {/* 4. Main Inventory Grid Workspace */}
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 flex-1 w-full max-w-full overflow-hidden">
+      {/* 3. Main Cashier Workspace (Items Grid on the Left/Center, Cashier Menu on the Right/Side) */}
+      <div className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-2 sm:py-4 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-start overflow-x-hidden">
         
-        {/* Subheader Title & Filter summary */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-          <div className="text-right">
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2.5">
-              {activeFilter === 'ALL'
-                ? 'مخزون قطع الغيار والمستودع'
-                : activeFilter === 'LOW_STOCK'
-                ? 'تنبيهات انخفاض ونفاد المخزون'
-                : `قطع ${activeFilter}`}
-              <span className="inline-flex items-center gap-1.5 flex-wrap">
-                <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-800 border border-slate-300">
-                  {filteredStockItems.length} صنف
-                </span>
+        {/* LEFT / CENTER: FULL ITEMS GRID (7 or 8 columns on large screens) */}
+        <main className="w-full lg:col-span-7 xl:col-span-8 flex flex-col space-y-2.5 sm:space-y-3 min-w-0">
+          
+          {/* Items Grid */}
+          {filteredItems.length === 0 ? (
+            <div className="p-8 sm:p-12 text-center rounded-2xl sm:rounded-3xl bg-white border border-slate-200 shadow-sm my-2">
+              <Package className="w-10 h-10 sm:w-12 sm:h-12 text-slate-300 mx-auto mb-2 sm:mb-3" />
+              <h3 className="text-xs sm:text-sm font-bold text-slate-800">
+                {searchQuery ? `لا توجد نتائج مطابقة لـ "${searchQuery}"` : 'لا توجد أصناف في المخزون حالياً'}
+              </h3>
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                {searchQuery ? 'جرب البحث بكلمات أخرى أو مسح حقل البحث.' : 'يمكنك إضافة أصناف جديدة أو مسح فواتير التوريد من لوحة الإدارة.'}
+              </p>
+              <div className="mt-4 flex items-center justify-center gap-2">
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                  >
+                    مسح البحث
+                  </button>
+                )}
                 <button
-                  onClick={() => setIsCategoriesModalOpen(true)}
-                  className="px-2 py-0.5 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-sm"
-                  title="تعديل الأقسام والتصنيفات"
+                  onClick={() => {
+                    setItemToEdit(null);
+                    setIsEditItemModalOpen(true);
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold cursor-pointer shadow-sm"
                 >
-                  <Edit3 className="w-3 h-3" />
-                  <span>تعديل الأقسام</span>
+                  إضافة صنف جديد
                 </button>
-              </span>
-            </h2>
-          </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3.5 w-full">
+              {filteredItems.map((item) => {
+                const inCartItem = cart.find((ci) => ci.item.id === item.id);
+                return (
+                  <CashierItemTile
+                    key={item.id}
+                    item={item}
+                    onAddToCart={handleAddToCart}
+                    isInCart={!!inCartItem}
+                    cartQuantity={inCartItem?.quantity || 0}
+                  />
+                );
+              })}
+            </div>
+          )}
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-2 text-xs">
-            <button
-              onClick={() => {
-                setItemToEdit(null);
-                setIsAddItemModalOpen(true);
-              }}
-              className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm shadow-amber-500/25"
-            >
-              <PackagePlus className="w-3.5 h-3.5" />
-              <span>إضافة صنف جديد</span>
-            </button>
-          </div>
-        </div>
+        </main>
 
-        {/* Inventory Cards Grid */}
-        {filteredStockItems.length === 0 ? (
-          <div className="p-12 text-center rounded-3xl bg-white border border-slate-200 my-8 shadow-sm">
-            <Package className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-slate-800">لا توجد قطع مطابقة للبحث</h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              {searchQuery
-                ? `لم يتم العثور على أي صنف يطابق بحثك عن "${searchQuery}".`
-                : 'لا توجد قطع ضمن هذا القسم المختار حالياً.'}
-            </p>
-            <div className="mt-4 flex items-center justify-center gap-2">
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200 cursor-pointer"
-                >
-                  مسح البحث
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  setItemToEdit(null);
-                  setIsAddItemModalOpen(true);
+        {/* RIGHT / SIDE: CASHIER MENU / CART (Desktop Sticky Sidebar) */}
+        <aside className="hidden lg:block lg:col-span-5 xl:col-span-4 sticky top-20 h-[calc(100vh-6rem)]">
+          <CashierCart
+            cart={cart}
+            onUpdateQuantity={handleUpdateCartQuantity}
+            onUpdatePrice={handleUpdateCartPrice}
+            onRemoveItem={handleRemoveFromCart}
+            onClearCart={handleClearCart}
+            onCheckout={handleCheckout}
+            lastCompletedReceipt={lastReceipt}
+            onDismissReceipt={() => setLastReceipt(null)}
+          />
+        </aside>
+
+      </div>
+
+      {/* MOBILE CASHIER CART MODAL / DRAWER */}
+      {isMobileCartOpen && (
+        <div 
+          className="fixed inset-0 z-50 lg:hidden flex flex-col justify-end bg-slate-950/70 backdrop-blur-xs animate-in fade-in"
+          dir="rtl"
+          onClick={() => setIsMobileCartOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-t-3xl max-h-[90vh] h-[85vh] w-full flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex-1 overflow-hidden">
+              <CashierCart
+                cart={cart}
+                onUpdateQuantity={handleUpdateCartQuantity}
+                onUpdatePrice={handleUpdateCartPrice}
+                onRemoveItem={handleRemoveFromCart}
+                onClearCart={handleClearCart}
+                onCheckout={(pm, cn, nt) => {
+                  handleCheckout(pm, cn, nt);
                 }}
-                className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold hover:bg-amber-400 cursor-pointer shadow-sm"
-              >
-                إضافة قطعة جديدة يدوياً
-              </button>
+                lastCompletedReceipt={lastReceipt}
+                onDismissReceipt={() => setLastReceipt(null)}
+                onClose={() => setIsMobileCartOpen(false)}
+              />
             </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
-            {filteredStockItems.map((item) => (
-              <StockCard
-                key={item.id}
-                item={item}
-                onIncrement={handleIncrement}
-                onDecrement={handleDecrement}
-                onSetExactQuantity={handleSetExactQuantity}
-                onSellItem={(itemToSell) => {
-                  setItemForQuickSell(itemToSell);
-                }}
-                onEdit={(itemToEdit) => {
-                  setItemToEdit(itemToEdit);
-                  setIsAddItemModalOpen(true);
-                }}
-                onCardClick={(clickedItem) => {
-                  setSelectedItemForDetails(clickedItem);
-                  setIsDetailModalOpen(true);
-                }}
-              />
-            ))}
-          </div>
-        )}
+        </div>
+      )}
 
-      </main>
-
-      {/* 6. Modals */}
-      {/* Item Detail Popup Modal */}
-      <ItemDetailModal
-        isOpen={isDetailModalOpen}
-        onClose={() => {
-          setIsDetailModalOpen(false);
-          setSelectedItemForDetails(null);
+      {/* 4. Comprehensive Admin Panel Modal */}
+      <AdminPanelModal
+        isOpen={isAdminOpen}
+        onClose={() => setIsAdminOpen(false)}
+        stockItems={stockItems}
+        transactions={transactions}
+        onOpenAddItem={(item) => {
+          setItemToEdit(item || null);
+          setIsEditItemModalOpen(true);
         }}
-        item={liveDetailItem}
-        onIncrement={handleIncrement}
-        onDecrement={handleDecrement}
-        onSetExactQuantity={handleSetExactQuantity}
-        onSellItem={(itemToSell) => {
-          setItemForQuickSell(itemToSell);
-        }}
-        onEdit={(itemToEdit) => {
-          setIsDetailModalOpen(false);
-          setItemToEdit(itemToEdit);
-          setIsAddItemModalOpen(true);
-        }}
+        onOpenInvoiceUpload={() => setIsInvoiceModalOpen(true)}
+        onIncrementStock={handleIncrementStock}
+        onDecrementStock={handleDecrementStock}
+        onDeleteItem={handleDeleteItem}
+        onResetData={() => setIsResetConfirmOpen(true)}
+        soundEnabled={soundEnabled}
+        onToggleSound={() => setSoundEnabled((prev) => !prev)}
       />
-      {/* AI Invoice Photo Upload Modal */}
+
+      {/* 5. Add / Edit Item Modal */}
+      <EditItemModal
+        isOpen={isEditItemModalOpen}
+        onClose={() => {
+          setIsEditItemModalOpen(false);
+          setItemToEdit(null);
+        }}
+        itemToEdit={itemToEdit}
+        onSave={handleSaveItem}
+        onDelete={handleDeleteItem}
+        categories={['عام']}
+      />
+
+      {/* 6. AI Invoice Scanner Modal */}
       <InvoiceUploadModal
         isOpen={isInvoiceModalOpen}
         onClose={() => setIsInvoiceModalOpen(false)}
@@ -954,69 +743,24 @@ export default function App() {
         onApplyInvoiceItems={handleApplyInvoiceItems}
       />
 
-      {/* Edit / Add Part Modal */}
-      <EditItemModal
-        isOpen={isAddItemModalOpen}
-        onClose={() => {
-          setIsAddItemModalOpen(false);
-          setItemToEdit(null);
-        }}
-        itemToEdit={itemToEdit}
-        onSave={handleSaveItem}
-        onDelete={handleDeleteItem}
-        categories={categories}
-        onAddCategory={handleAddCategory}
-      />
-
-      {/* Categories Management Modal */}
-      <CategoriesModal
-        isOpen={isCategoriesModalOpen}
-        onClose={() => setIsCategoriesModalOpen(false)}
-        categories={categories}
-        onAddCategory={handleAddCategory}
-        onRenameCategory={handleRenameCategory}
-        onDeleteCategory={handleDeleteCategory}
-      />
-
-      {/* Low-Stock Supplier Reorder Sheet Modal */}
-      <ReorderListModal
-        isOpen={isReorderModalOpen}
-        onClose={() => setIsReorderModalOpen(false)}
-        lowStockItems={lowStockItems}
-        outOfStockItems={outOfStockItems}
-        onRestockItem={(item, qty) => {
-          handleIncrement(item, qty);
-          showToast('تم توريد المخزون', `تمت إضافة +${qty} قطعة من "${item.name}" بنجاح.`, 'success');
-        }}
-      />
-
-      {/* Transaction Activity Log Modal */}
-      <TransactionHistoryModal
-        isOpen={isHistoryModalOpen}
-        onClose={() => setIsHistoryModalOpen(false)}
-        transactions={transactions}
-        onClearHistory={() => setTransactions([])}
-      />
-
-      {/* Reset Defaults Confirmation Modal */}
-      {isResetModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-150" dir="rtl">
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 max-w-sm w-full shadow-xl text-right">
-            <h3 className="text-base font-bold text-slate-900 mb-2">مسح وحذف كافة البيانات نهائياً؟</h3>
+      {/* 7. Reset Database Confirmation */}
+      {isResetConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in" dir="rtl">
+          <div className="bg-white border border-slate-200 rounded-3xl p-5 max-w-sm w-full shadow-2xl text-right">
+            <h3 className="text-base font-bold text-slate-900 mb-2">تفريغ وحذف البيانات نهائياً؟</h3>
             <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-              سيتم حذف جميع أصناف المخزون وسجل الحركات والصور المرفوعة نهائياً من قاعدة البيانات والسحابة والبدء بمخزون فارغ تماماً.
+              سيتم حذف جميع أصناف المخزون وسجل الحركات نهائياً من قاعدة البيانات والبدء بمخزون فارغ.
             </p>
             <div className="flex items-center justify-end gap-2.5">
               <button
-                onClick={() => setIsResetModalOpen(false)}
-                className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer transition-colors"
+                onClick={() => setIsResetConfirmOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
               >
                 إلغاء
               </button>
               <button
-                id="confirm-reset-stock-btn"
-                onClick={confirmResetData}
-                className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-600/20 cursor-pointer transition-colors"
+                onClick={handleForceClearAll}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer shadow-md shadow-rose-600/20"
               >
                 تأكيد الحذف الشامل
               </button>
@@ -1025,34 +769,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Quick Sell Modal (Single Item Quick Sale with payment & customer options) */}
-      <QuickSellModal
-        isOpen={!!itemForQuickSell}
-        onClose={() => setItemForQuickSell(null)}
-        item={itemForQuickSell}
-        onConfirmSale={handleConfirmSale}
-        onOpenFullPos={(itemToAdd) => {
-          setItemForQuickSell(null);
-          setItemToPreloadInPos(itemToAdd || null);
-          setIsPosModalOpen(true);
-        }}
-      />
-
-      {/* Full POS Cashier Terminal Modal (Cart, Search, Receipt & Sales Stats) */}
-      <PosModal
-        isOpen={isPosModalOpen}
-        onClose={() => {
-          setIsPosModalOpen(false);
-          setItemToPreloadInPos(null);
-        }}
-        stockItems={stockItems}
-        categories={categories}
-        transactions={transactions}
-        initialItemToAdd={itemToPreloadInPos}
-        onCompleteSale={handleCompletePosSale}
-      />
-
     </div>
   );
 }
-

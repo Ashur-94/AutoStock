@@ -4,7 +4,7 @@ import {
   ShoppingCart, 
   Plus, 
   Minus, 
-  DollarSign, 
+  ArrowLeftRight, 
   CreditCard, 
   Coins, 
   User, 
@@ -156,7 +156,7 @@ export const QuickSellModal: React.FC<QuickSellModalProps> = ({
               </h3>
               <div className="flex items-center gap-3 text-xs text-slate-600 mt-1">
                 <span>
-                  سعر البيع: <span className="font-mono font-bold text-emerald-600">${item.sellingPrice.toFixed(2)}</span>
+                  سعر البيع: <span className="font-mono font-bold text-emerald-600">{item.sellingPrice.toFixed(2)}</span>
                 </span>
                 <span>•</span>
                 <span>
@@ -267,12 +267,12 @@ export const QuickSellModal: React.FC<QuickSellModalProps> = ({
                 <div>
                   <span className="text-[11px] text-emerald-700 font-semibold block">المبلغ المطلوب من الزبون:</span>
                   <span className="text-xs text-emerald-600">
-                    {quantity} × ${item.sellingPrice.toFixed(2)}
+                    {quantity} × {item.sellingPrice.toFixed(2)}
                   </span>
                 </div>
                 <div className="text-left" dir="ltr">
                   <span className="font-mono text-2xl font-black text-emerald-800">
-                    ${totalAmount.toFixed(2)}
+                    {totalAmount.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -284,7 +284,7 @@ export const QuickSellModal: React.FC<QuickSellModalProps> = ({
                   {[
                     { id: 'CASH', label: 'نقداً (كاش)', icon: Coins },
                     { id: 'CARD', label: 'شبكة / مدى', icon: CreditCard },
-                    { id: 'TRANSFER', label: 'تحويل', icon: DollarSign },
+                    { id: 'TRANSFER', label: 'تحويل', icon: ArrowLeftRight },
                     { id: 'CREDIT', label: 'آجل / ذمم', icon: User },
                   ].map((m) => {
                     const Icon = m.icon;

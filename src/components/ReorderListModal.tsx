@@ -47,7 +47,7 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
       `=== أمر شراء وإعادة طلب نواقص المخزون - ورشة أوتوستوك ===`,
       `تاريخ الإصدار: ${new Date().toLocaleDateString('ar-EG')} ${new Date().toLocaleTimeString('ar-EG')}`,
       `إجمالي بنود النواقص: ${allAlertItems.length}`,
-      `التكلفة التقديرية: $${totalEstimatedReorderCost.toFixed(2)}`,
+      `التكلفة التقديرية: ${totalEstimatedReorderCost.toFixed(2)}`,
       ``,
     ];
 
@@ -56,7 +56,7 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
       items.forEach((item) => {
         const reorderQty = Math.max(1, (item.minStockThreshold * 2) - item.quantity);
         textLines.push(
-          `• [${item.partNumber}] ${item.name} | الكمية المطلوبة: ${reorderQty} ${item.unit} (المتوفر حالياً: ${item.quantity}، الحد الأدنى: ${item.minStockThreshold}) | السعر التقديري: $${(reorderQty * item.sellingPrice).toFixed(2)}`
+          `• [${item.partNumber}] ${item.name} | الكمية المطلوبة: ${reorderQty} ${item.unit} (المتوفر حالياً: ${item.quantity}، الحد الأدنى: ${item.minStockThreshold}) | السعر التقديري: ${(reorderQty * item.sellingPrice).toFixed(2)}`
         );
       });
       textLines.push(``);
@@ -144,7 +144,7 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
               </div>
               <div className="border-r border-slate-200 pr-2">
                 <span className="text-slate-500 block text-[9px] sm:text-[10px] font-bold">القيمة التقديرية</span>
-                <span className="font-mono font-extrabold text-xs sm:text-sm text-emerald-600">${totalEstimatedReorderCost.toFixed(2)}</span>
+                <span className="font-mono font-extrabold text-xs sm:text-sm text-emerald-600">{totalEstimatedReorderCost.toFixed(2)}</span>
               </div>
             </div>
 
@@ -187,7 +187,7 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
                         <span className="text-[11px] font-normal text-slate-500">({items.length} قطع)</span>
                       </div>
                       <span className="font-mono text-slate-700">
-                        التقدير: <span className="text-emerald-600 font-bold">${supplierSubtotal.toFixed(2)}</span>
+                        التقدير: <span className="text-emerald-600 font-bold">{supplierSubtotal.toFixed(2)}</span>
                       </span>
                     </div>
 
@@ -218,7 +218,7 @@ export const ReorderListModal: React.FC<ReorderListModalProps> = ({
                                 {item.name}
                               </div>
                               <div className="text-[11px] text-slate-500 mt-0.5">
-                                المكان: {item.location} • سعر البيع: ${item.sellingPrice.toFixed(2)}
+                                المكان: {item.location} • سعر البيع: {item.sellingPrice.toFixed(2)}
                               </div>
                             </div>
 

@@ -489,7 +489,7 @@ export const InvoiceUploadModal: React.FC<InvoiceUploadModalProps> = ({
                   <div>
                     <span className="text-[9px] sm:text-[10px] text-slate-500 block">الإجمالي</span>
                     <span className="text-emerald-700 font-bold text-xs sm:text-sm" dir="ltr">
-                      ${parsedResult.totalAmount.toFixed(2)}
+                      {parsedResult.totalAmount.toFixed(2)}
                     </span>
                   </div>
                   {uploadedStorageUrl && (
@@ -582,7 +582,6 @@ export const InvoiceUploadModal: React.FC<InvoiceUploadModalProps> = ({
                           <div>
                             <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase block font-semibold text-center">سعر الوحدة</span>
                             <div className="flex items-center gap-0.5 mt-0.5 font-mono" dir="ltr">
-                              <span className="text-slate-500 text-xs">$</span>
                               <input
                                 type="number"
                                 step="0.01"

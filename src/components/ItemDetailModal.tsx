@@ -342,7 +342,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
               <span className="text-xs text-slate-500 font-semibold block mb-0.5">سعر البيع للزبون</span>
               <span className="text-[11px] text-slate-400">السعر المعتمد في الفواتير ونقاط البيع</span>
             </div>
-            <span className="font-mono text-2xl font-black text-amber-600">${item.sellingPrice.toFixed(2)}</span>
+            <span className="font-mono text-2xl font-black text-amber-600">{item.sellingPrice.toFixed(2)}</span>
           </div>
 
           {/* Location & Supplier Information */}
