@@ -3,21 +3,18 @@ import {
   X, 
   ChevronRight, 
   ChevronLeft, 
-  ChevronDown,
   Calendar as CalendarIcon, 
-  ShoppingBag, 
   CreditCard, 
   Coins, 
   Clock, 
   User,
-  Receipt,
   CalendarDays,
   ArrowRight,
-  Sparkles,
   Layers,
-  History,
   TrendingUp,
-  Tag
+  Search,
+  ArrowLeftRight,
+  FileText
 } from 'lucide-react';
 import { StockTransaction, StockItem } from '../types';
 
@@ -55,9 +52,9 @@ export const PosModal: React.FC<PosModalProps> = ({
   const today = new Date();
   const [currentYear, setCurrentYear] = useState<number>(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState<number>(today.getMonth());
-  const [isCalendarOpen, setIsCalendarOpen] = useState<boolean>(false);
-  const [viewScope, setViewScope] = useState<ViewScope>('ALL'); // Default to ALL or TODAY with clear toggle
-  const calendarRef = useRef<HTMLDivElement>(null);
+  const [isCalendarExpanded, setIsCalendarExpanded] = useState<boolean>(true);
+  const [viewScope, setViewScope] = useState<ViewScope>('ALL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const modalContentRef = useRef<HTMLDivElement>(null);
 
   // Helper to format Date into YYYY-MM-DD
@@ -75,10 +72,8 @@ export const PosModal: React.FC<PosModalProps> = ({
   const getTxDateStr = (timestamp?: string): string => {
     if (!timestamp) return todayStr;
     try {
-      // If it has ISO format YYYY-MM-DD
       if (timestamp.length >= 10 && timestamp.charAt(4) === '-' && timestamp.charAt(7) === '-') {
-        const rawDate = timestamp.substring(0, 10);
-        return rawDate;
+        return timestamp.substring(0, 10);
       }
       const d = new Date(timestamp);
       if (!isNaN(d.getTime())) {
@@ -88,30 +83,11 @@ export const PosModal: React.FC<PosModalProps> = ({
     return todayStr;
   };
 
-  // Close calendar popup on click outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
-        setIsCalendarOpen(false);
-      }
-    };
-    if (isCalendarOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isCalendarOpen]);
-
-  // Handle ESC key to close modal or calendar
+  // Handle ESC key to close modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (isCalendarOpen) {
-          setIsCalendarOpen(false);
-        } else if (isOpen) {
-          onClose();
-        }
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
       }
     };
     if (isOpen) {
@@ -120,7 +96,7 @@ export const PosModal: React.FC<PosModalProps> = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, isCalendarOpen, onClose]);
+  }, [isOpen, onClose]);
 
   // Lock body scroll when POS modal is open
   useEffect(() => {
@@ -128,7 +104,6 @@ export const PosModal: React.FC<PosModalProps> = ({
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
-      setIsCalendarOpen(false);
     }
     return () => {
       document.body.style.overflow = '';
@@ -136,7 +111,6 @@ export const PosModal: React.FC<PosModalProps> = ({
   }, [isOpen]);
 
   // Extract all sales transactions comprehensively
-  // Includes type === 'SALE', 'SELL', or any transaction with negative delta that isn't a manual adjustment
   const allSales = useMemo(() => {
     return transactions.filter((t) => {
       const typeUpper = (t.type || '').toUpperCase();
@@ -152,7 +126,6 @@ export const PosModal: React.FC<PosModalProps> = ({
   const getSaleAmount = (sale: StockTransaction, qty: number) => {
     if (sale.totalPrice && sale.totalPrice > 0) return sale.totalPrice;
     if (sale.unitPrice && sale.unitPrice > 0) return sale.unitPrice * qty;
-    // Look up item in stockItems
     if (sale.itemId || sale.partNumber) {
       const matched = stockItems.find(
         (i) => (sale.itemId && i.id === sale.itemId) || (sale.partNumber && i.partNumber === sale.partNumber)
@@ -253,54 +226,6 @@ export const PosModal: React.FC<PosModalProps> = ({
     };
   }, [salesByDate, selectedDateStr]);
 
-  // Displayed sales list depending on viewScope
-  const displayedSalesList = useMemo(() => {
-    if (viewScope === 'ALL') {
-      return allSales;
-    }
-    if (viewScope === 'TODAY') {
-      return todayStats.sales;
-    }
-    if (viewScope === 'MONTH') {
-      return allSales.filter((s) => getTxDateStr(s.timestamp).startsWith(monthPrefix));
-    }
-    return selectedDayData.sales;
-  }, [viewScope, allSales, todayStats.sales, monthPrefix, selectedDayData.sales]);
-
-  // Displayed summary figures
-  const activeStats = useMemo(() => {
-    if (viewScope === 'ALL') {
-      return {
-        title: 'جميع المبيعات المسجلة',
-        revenue: allTimeStats.totalRevenue,
-        count: allTimeStats.salesCount,
-        units: allTimeStats.totalUnits,
-      };
-    }
-    if (viewScope === 'TODAY') {
-      return {
-        title: 'مبيعات اليوم',
-        revenue: todayStats.totalRevenue,
-        count: todayStats.salesCount,
-        units: todayStats.totalUnits,
-      };
-    }
-    if (viewScope === 'MONTH') {
-      return {
-        title: `مبيعات شهر ${MONTH_NAMES_AR[currentMonth]} ${currentYear}`,
-        revenue: monthStats.revenue,
-        count: monthStats.count,
-        units: monthStats.units,
-      };
-    }
-    return {
-      title: `مبيعات يوم ${selectedDateStr}`,
-      revenue: selectedDayData.totalRevenue,
-      count: selectedDayData.salesCount,
-      units: selectedDayData.totalUnits,
-    };
-  }, [viewScope, allTimeStats, todayStats, monthStats, currentMonth, currentYear, selectedDateStr, selectedDayData]);
-
   // Calendar cells generation
   const calendarDays = useMemo(() => {
     const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
@@ -350,7 +275,7 @@ export const PosModal: React.FC<PosModalProps> = ({
       });
     }
 
-    // Next month padding to reach 35 or 42 cells
+    // Next month padding to complete standard grid (up to 35 or 42 cells)
     const targetLength = days.length <= 35 ? 35 : 42;
     const remaining = targetLength - days.length;
     for (let dayNum = 1; dayNum <= remaining; dayNum++) {
@@ -371,6 +296,65 @@ export const PosModal: React.FC<PosModalProps> = ({
 
     return days;
   }, [currentYear, currentMonth, salesByDate, todayStr, selectedDateStr, viewScope]);
+
+  // Displayed sales list depending on viewScope and search filter
+  const displayedSalesList = useMemo(() => {
+    let list: StockTransaction[] = [];
+    if (viewScope === 'ALL') {
+      list = allSales;
+    } else if (viewScope === 'TODAY') {
+      list = todayStats.sales;
+    } else if (viewScope === 'MONTH') {
+      list = allSales.filter((s) => getTxDateStr(s.timestamp).startsWith(monthPrefix));
+    } else {
+      list = selectedDayData.sales;
+    }
+
+    if (!searchQuery.trim()) return list;
+
+    const q = searchQuery.toLowerCase().trim();
+    return list.filter((s) => {
+      const name = (s.itemName || '').toLowerCase();
+      const part = (s.partNumber || '').toLowerCase();
+      const customer = (s.customerName || '').toLowerCase();
+      const note = (s.note || '').toLowerCase();
+      return name.includes(q) || part.includes(q) || customer.includes(q) || note.includes(q);
+    });
+  }, [viewScope, allSales, todayStats.sales, monthPrefix, selectedDayData.sales, searchQuery]);
+
+  // Displayed summary figures
+  const activeStats = useMemo(() => {
+    if (viewScope === 'ALL') {
+      return {
+        title: 'جميع المبيعات المسجلة',
+        revenue: allTimeStats.totalRevenue,
+        count: allTimeStats.salesCount,
+        units: allTimeStats.totalUnits,
+      };
+    }
+    if (viewScope === 'TODAY') {
+      return {
+        title: 'مبيعات اليوم',
+        revenue: todayStats.totalRevenue,
+        count: todayStats.salesCount,
+        units: todayStats.totalUnits,
+      };
+    }
+    if (viewScope === 'MONTH') {
+      return {
+        title: `مبيعات شهر ${MONTH_NAMES_AR[currentMonth]} ${currentYear}`,
+        revenue: monthStats.revenue,
+        count: monthStats.count,
+        units: monthStats.units,
+      };
+    }
+    return {
+      title: `مبيعات يوم ${selectedDateStr}`,
+      revenue: selectedDayData.totalRevenue,
+      count: selectedDayData.salesCount,
+      units: selectedDayData.totalUnits,
+    };
+  }, [viewScope, allTimeStats, todayStats, monthStats, currentMonth, currentYear, selectedDateStr, selectedDayData]);
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -393,7 +377,6 @@ export const PosModal: React.FC<PosModalProps> = ({
   const handleSelectDay = (dateStr: string) => {
     setSelectedDateStr(dateStr);
     setViewScope('CUSTOM_DAY');
-    setIsCalendarOpen(false);
   };
 
   const handleGoToday = () => {
@@ -402,30 +385,38 @@ export const PosModal: React.FC<PosModalProps> = ({
     setCurrentMonth(now.getMonth());
     setSelectedDateStr(todayStr);
     setViewScope('TODAY');
-    setIsCalendarOpen(false);
   };
 
   const handleShiftDay = (delta: number) => {
     try {
-      const [y, m, d] = selectedDateStr.split('-').map(Number);
-      const cur = new Date(y, m - 1, d);
-      cur.setDate(cur.getDate() + delta);
-      const newStr = formatIsoDate(cur);
-      setSelectedDateStr(newStr);
-      setCurrentYear(cur.getFullYear());
-      setCurrentMonth(cur.getMonth());
-      setViewScope('CUSTOM_DAY');
+      const parts = selectedDateStr.split('-').map(Number);
+      if (parts.length === 3 && !parts.some(isNaN)) {
+        const [y, m, d] = parts;
+        const cur = new Date(y, m - 1, d);
+        cur.setDate(cur.getDate() + delta);
+        const newStr = formatIsoDate(cur);
+        setSelectedDateStr(newStr);
+        setCurrentYear(cur.getFullYear());
+        setCurrentMonth(cur.getMonth());
+        setViewScope('CUSTOM_DAY');
+      }
     } catch {}
   };
 
   // Format readable Arabic date for any date string
   const formatArabicDate = (dateStr: string) => {
     try {
-      const [y, m, d] = dateStr.split('-').map(Number);
-      const dateObj = new Date(y, m - 1, d);
-      const dayName = DAYS_FULL_AR[dateObj.getDay()];
-      const monthName = MONTH_NAMES_AR[m - 1];
-      return `${dayName}، ${d} ${monthName} ${y}`;
+      const parts = dateStr.split('-').map(Number);
+      if (parts.length === 3 && !parts.some(isNaN)) {
+        const [y, m, d] = parts;
+        const dateObj = new Date(y, m - 1, d);
+        if (!isNaN(dateObj.getTime())) {
+          const dayName = DAYS_FULL_AR[dateObj.getDay()];
+          const monthName = MONTH_NAMES_AR[m - 1] || '';
+          return `${dayName}، ${d} ${monthName} ${y}`;
+        }
+      }
+      return dateStr;
     } catch {
       return dateStr;
     }
@@ -435,8 +426,8 @@ export const PosModal: React.FC<PosModalProps> = ({
 
   return (
     <div
-      id="pos-calendar-button-modal"
-      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-150"
+      id="pos-calendar-modal-overlay"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150"
       dir="rtl"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
@@ -446,427 +437,433 @@ export const PosModal: React.FC<PosModalProps> = ({
     >
       <div 
         ref={modalContentRef}
-        className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden text-right"
+        className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl h-[92vh] max-h-[92vh] flex flex-col overflow-hidden text-right"
         onClick={(e) => e.stopPropagation()}
       >
         
-        {/* TOP HEADER */}
-        <div className="px-4 sm:px-6 py-3.5 bg-slate-900 text-white flex items-center justify-between gap-2.5 shrink-0 relative">
+        {/* 1. TOP HEADER */}
+        <div className="px-4 sm:px-6 py-3 bg-slate-900 text-white flex items-center justify-between gap-2 shrink-0">
           
-          {/* Right/Title in RTL */}
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-              <Receipt className="w-4 h-4" />
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+              <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-                نقطة البيع (POS) — سجل المبيعات
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-bold text-white truncate">
+                سجل العمليات — تقويم المبيعات
               </h2>
+              <p className="text-[11px] text-slate-400 hidden sm:block truncate">
+                متابعة حركة المبيعات اليومية والشهرية والإيرادات الحية
+              </p>
             </div>
           </div>
 
-          {/* Center & Left Controls: Date Picker & Exit */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             
-            {/* Previous Day Button */}
+            {/* Toggle Calendar Visibility */}
             <button
-              id="pos-prev-day-btn"
-              onClick={() => handleShiftDay(-1)}
-              className="p-1.5 sm:p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
-              title="اليوم السابق"
+              onClick={() => setIsCalendarExpanded((prev) => !prev)}
+              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                isCalendarExpanded
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+              }`}
+              title="إظهار / إخفاء التقويم الشهري"
             >
-              <ChevronRight className="w-4 h-4" />
+              <CalendarIcon className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">{isCalendarExpanded ? 'إخفاء التقويم' : 'عرض التقويم'}</span>
             </button>
 
-            {/* THE CALENDAR BUTTON (Click to open calendar popup) */}
-            <div className="relative" ref={calendarRef}>
-              <button
-                id="pos-open-calendar-btn"
-                onClick={() => setIsCalendarOpen((prev) => !prev)}
-                className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer select-none ${
-                  isCalendarOpen
-                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400'
-                    : 'bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700'
-                }`}
-                title="انقر لفتح التقويم واختيار التاريخ"
-              >
-                <CalendarIcon className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span className="truncate max-w-[130px] sm:max-w-[200px]">
-                  {viewScope === 'ALL'
-                    ? `الكل (${allSales.length} مبيعات)`
-                    : viewScope === 'TODAY'
-                    ? `اليوم: ${formatArabicDate(todayStr)}`
-                    : formatArabicDate(selectedDateStr)}
-                </span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isCalendarOpen ? 'rotate-180' : ''}`} />
-              </button>
+            {/* Exit button */}
+            <button
+              id="pos-header-close-btn"
+              onClick={onClose}
+              className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-rose-600/90 hover:bg-rose-600 text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+              title="إغلاق والعودة للكاشير (Esc)"
+            >
+              <X className="w-4 h-4" />
+              <span className="hidden sm:inline">إغلاق</span>
+            </button>
 
-              {/* FLOATING CALENDAR POPUP POPOVER */}
-              {isCalendarOpen && (
-                <div
-                  id="pos-calendar-popover"
-                  className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-[300px] sm:w-[330px] bg-white text-slate-900 border border-slate-200 rounded-2xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150"
-                  dir="rtl"
-                >
-                  {/* Calendar Month Navigation Header */}
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+          </div>
+
+        </div>
+
+        {/* 2. MAIN SCROLLABLE CONTAINER */}
+        <div className="flex-1 overflow-y-auto flex flex-col divide-y divide-slate-100">
+          
+          {/* SECTION A: INTERACTIVE CALENDAR (Collapsible & Responsive) */}
+          {isCalendarExpanded && (
+            <div className="p-3 sm:p-4 bg-slate-900/5 text-slate-900 border-b border-slate-200">
+              <div className="max-w-3xl mx-auto bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-xs">
+                
+                {/* Month Navigator Header */}
+                <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={handleNextMonth}
-                      className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer"
+                      className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
                       title="الشهر القادم"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
-
-                    <div className="text-center">
-                      <span className="text-xs sm:text-sm font-bold text-slate-900">
-                        {MONTH_NAMES_AR[currentMonth]} {currentYear}
-                      </span>
-                    </div>
-
                     <button
                       onClick={handlePrevMonth}
-                      className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer"
+                      className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
                       title="الشهر السابق"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                   </div>
 
-                  {/* Day of Week Headers */}
-                  <div className="grid grid-cols-7 gap-1 text-center mb-1">
-                    {DAYS_SHORT_AR.map((dayName, idx) => (
-                      <div key={idx} className="text-[10px] font-bold text-slate-400 py-0.5">
-                        {dayName}
-                      </div>
-                    ))}
+                  <div className="text-center">
+                    <span className="text-sm sm:text-base font-black text-slate-900">
+                      {MONTH_NAMES_AR[currentMonth]} {currentYear}
+                    </span>
+                    <span className="text-[11px] text-emerald-700 font-bold block">
+                      إيراد الشهر: {monthStats.revenue.toFixed(2)} ({monthStats.count} مبيعات)
+                    </span>
                   </div>
 
-                  {/* Calendar Days Grid */}
-                  <div className="grid grid-cols-7 gap-1">
-                    {calendarDays.map((day, idx) => {
-                      const hasSales = day.salesCount > 0;
-                      return (
-                        <button
-                          key={`${day.dateStr}-${idx}`}
-                          onClick={() => handleSelectDay(day.dateStr)}
-                          className={`h-9 sm:h-10 p-0.5 rounded-lg border text-center flex flex-col items-center justify-center transition-all cursor-pointer relative ${
-                            day.isSelected
-                              ? 'bg-emerald-600 border-emerald-600 text-white font-black shadow-sm'
-                              : day.isCurrentMonth
-                              ? hasSales
-                                ? 'bg-emerald-50 border-emerald-300 text-emerald-900 hover:bg-emerald-100 font-bold'
-                                : 'bg-white border-slate-100 hover:bg-slate-50 text-slate-700'
-                              : 'bg-slate-50/40 border-transparent text-slate-300 opacity-40'
-                          }`}
-                        >
-                          <span className="text-[11px] leading-none">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={handleGoToday}
+                      className="px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition-colors cursor-pointer border border-emerald-200"
+                    >
+                      اليوم
+                    </button>
+                    <button
+                      onClick={() => setViewScope('MONTH')}
+                      className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-colors cursor-pointer border ${
+                        viewScope === 'MONTH'
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      عرض الشهر
+                    </button>
+                  </div>
+                </div>
+
+                {/* Days of Week Header */}
+                <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                  {DAYS_SHORT_AR.map((dayName, idx) => (
+                    <div key={idx} className="text-[11px] font-bold text-slate-400 py-1">
+                      {dayName}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Calendar Days Matrix */}
+                <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+                  {calendarDays.map((day, idx) => {
+                    const hasSales = day.salesCount > 0;
+                    return (
+                      <button
+                        key={`${day.dateStr}-${idx}`}
+                        onClick={() => handleSelectDay(day.dateStr)}
+                        className={`min-h-[44px] sm:min-h-[50px] p-1 rounded-xl border text-center flex flex-col items-center justify-between transition-all cursor-pointer relative ${
+                          day.isSelected
+                            ? 'bg-emerald-600 border-emerald-600 text-white font-black shadow-md shadow-emerald-600/30 scale-[1.02] z-10'
+                            : day.isCurrentMonth
+                            ? hasSales
+                              ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 hover:bg-emerald-100 font-bold'
+                              : 'bg-white border-slate-150 hover:bg-slate-50 text-slate-700'
+                            : 'bg-slate-50/50 border-transparent text-slate-300 opacity-40 hover:opacity-75'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full px-0.5">
+                          <span className={`text-xs font-bold leading-none ${day.isSelected ? 'text-white' : ''}`}>
                             {day.dayNumber}
                           </span>
+                          {day.isToday && !day.isSelected && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="اليوم" />
+                          )}
+                        </div>
 
-                          {hasSales && (
+                        {hasSales && (
+                          <div className="w-full mt-0.5">
                             <span
-                              className={`text-[8px] font-bold mt-0.5 leading-none px-1 rounded ${
+                              className={`text-[9px] sm:text-[10px] font-mono font-black block truncate px-1 rounded ${
                                 day.isSelected
-                                  ? 'text-emerald-100 bg-emerald-700/60'
-                                  : 'text-emerald-700 bg-emerald-200/60'
+                                  ? 'text-emerald-100 bg-emerald-700/70'
+                                  : 'text-emerald-800 bg-emerald-200/60'
                               }`}
                             >
                               {day.totalRevenue.toFixed(0)}
                             </span>
-                          )}
-
-                          {day.isToday && !day.isSelected && (
-                            <span className="w-1 h-1 rounded-full bg-emerald-500 absolute bottom-0.5" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Popover Footer */}
-                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <button
-                      onClick={handleGoToday}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold transition-colors cursor-pointer text-[11px]"
-                    >
-                      الانتقال لليوم
-                    </button>
-                    <span className="text-[11px] text-slate-500 font-medium">
-                      مبيعات الشهر: <strong className="text-slate-800">{monthStats.revenue.toFixed(2)}</strong>
-                    </span>
-                  </div>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
+
+              </div>
+            </div>
+          )}
+
+          {/* SECTION B: SCOPE TABS & SEARCH BAR */}
+          <div className="p-3 sm:p-4 bg-white space-y-3 shrink-0">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+              
+              {/* Filter Tabs */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                <button
+                  onClick={() => setViewScope('ALL')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                    viewScope === 'ALL'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>الكل ({allSales.length})</span>
+                </button>
+
+                <button
+                  onClick={() => setViewScope('TODAY')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                    viewScope === 'TODAY'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  <span>اليوم ({todayStats.salesCount})</span>
+                </button>
+
+                <button
+                  onClick={() => setViewScope('MONTH')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                    viewScope === 'MONTH'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span>الشهر ({monthStats.count})</span>
+                </button>
+
+                {viewScope === 'CUSTOM_DAY' && (
+                  <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl shrink-0">
+                    <button
+                      onClick={() => handleShiftDay(1)}
+                      className="p-0.5 text-emerald-800 hover:text-emerald-950 cursor-pointer"
+                      title="اليوم اللاحق"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-xs font-bold text-emerald-900 px-1 font-mono">
+                      {selectedDateStr}
+                    </span>
+                    <button
+                      onClick={() => handleShiftDay(-1)}
+                      className="p-0.5 text-emerald-800 hover:text-emerald-950 cursor-pointer"
+                      title="اليوم السابق"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Search in sales */}
+              <div className="relative flex-1 sm:max-w-xs">
+                <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="بحث في المبيعات..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pr-9 pl-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white"
+                />
+              </div>
+
             </div>
 
-            {/* Next Day Button */}
-            <button
-              id="pos-next-day-btn"
-              onClick={() => handleShiftDay(1)}
-              className="p-1.5 sm:p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
-              title="اليوم اللاحق"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
+            {/* Stats Overview Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+              
+              <div className="bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-200">
+                <span className="text-[11px] font-semibold text-slate-500 block truncate">
+                  إجمالي إيراد {viewScope === 'ALL' ? 'الكل' : viewScope === 'TODAY' ? 'اليوم' : viewScope === 'MONTH' ? 'الشهر' : 'اليوم المحدد'}
+                </span>
+                <span className="text-sm sm:text-base font-black text-emerald-600 font-mono block mt-0.5">
+                  {activeStats.revenue.toFixed(2)}
+                </span>
+              </div>
 
-            {/* TOP EXIT BUTTON */}
-            <button
-              id="pos-header-exit-btn"
-              onClick={onClose}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600/90 hover:bg-rose-600 text-white text-xs sm:text-sm font-bold transition-all hover:scale-105 active:scale-95 shadow-md shadow-rose-600/30 cursor-pointer mr-1"
-              title="الخروج والعودة للتطبيق (Esc)"
-            >
-              <X className="w-4 h-4" />
-              <span className="hidden sm:inline">إغلاق / عودة</span>
-            </button>
+              <div className="bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-200">
+                <span className="text-[11px] font-semibold text-slate-500 block">عدد العمليات</span>
+                <span className="text-sm sm:text-base font-black text-slate-900 font-mono block mt-0.5">
+                  {activeStats.count} عملية
+                </span>
+              </div>
 
+              <div className="bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-200">
+                <span className="text-[11px] font-semibold text-slate-500 block">القطع المباعة</span>
+                <span className="text-sm sm:text-base font-black text-slate-900 font-mono block mt-0.5">
+                  {activeStats.units} قطعة
+                </span>
+              </div>
+
+              <div className="bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-200">
+                <span className="text-[11px] font-semibold text-slate-500 block">كافة المبيعات (الكل)</span>
+                <span className="text-sm sm:text-base font-black text-indigo-600 font-mono block mt-0.5">
+                  {allTimeStats.totalRevenue.toFixed(2)}
+                </span>
+              </div>
+
+            </div>
           </div>
 
-        </div>
-
-        {/* SCOPE TABS BAR: All Sales vs Today vs Month */}
-        <div className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between gap-2 overflow-x-auto">
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={() => setViewScope('ALL')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                viewScope === 'ALL'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>جميع المبيعات ({allSales.length})</span>
-            </button>
-
-            <button
-              onClick={() => setViewScope('TODAY')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                viewScope === 'TODAY'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
-              }`}
-            >
-              <CalendarDays className="w-3.5 h-3.5" />
-              <span>اليوم ({todayStats.salesCount})</span>
-            </button>
-
-            <button
-              onClick={() => setViewScope('MONTH')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                viewScope === 'MONTH'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
-              }`}
-            >
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>هذا الشهر ({monthStats.count})</span>
-            </button>
-
-            {viewScope === 'CUSTOM_DAY' && (
-              <button
-                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-xs flex items-center gap-1.5"
-              >
-                <CalendarIcon className="w-3.5 h-3.5" />
-                <span>يوم محدد ({selectedDayData.salesCount})</span>
-              </button>
-            )}
-          </div>
-
-          <span className="text-[11px] text-slate-500 font-medium hidden md:inline">
-            سجل المبيعات الحية والمحدثة فوراً
-          </span>
-        </div>
-
-        {/* STATS BAR: Scope Revenue, Transactions Count, Sold Units & All-Time Total */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 sm:p-4 bg-slate-50 border-b border-slate-200 shrink-0">
-          
-          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[11px] font-semibold text-slate-500 block">
-              إجمالي مبيعات {viewScope === 'ALL' ? 'الكل' : viewScope === 'TODAY' ? 'اليوم' : viewScope === 'MONTH' ? 'الشهر' : 'اليوم المختار'}
-            </span>
-            <span className="text-sm sm:text-base font-extrabold text-emerald-600 block mt-0.5">
-              {activeStats.revenue.toFixed(2)}
-            </span>
-          </div>
-
-          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[11px] font-semibold text-slate-500 block">عدد عمليات البيع</span>
-            <span className="text-sm sm:text-base font-extrabold text-slate-900 block mt-0.5">
-              {activeStats.count} عملية
-            </span>
-          </div>
-
-          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[11px] font-semibold text-slate-500 block">إجمالي القطع المباعة</span>
-            <span className="text-sm sm:text-base font-extrabold text-slate-900 block mt-0.5">
-              {activeStats.units} قطعة
-            </span>
-          </div>
-
-          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[11px] font-semibold text-slate-500 block">إجمالي كافة المبيعات (الكل)</span>
-            <span className="text-sm sm:text-base font-extrabold text-indigo-600 block mt-0.5">
-              {allTimeStats.totalRevenue.toFixed(2)} ({allTimeStats.salesCount})
-            </span>
-          </div>
-
-        </div>
-
-        {/* MAIN BODY: List of Sales */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
-          
-          {/* Header of the list with formatted date/scope */}
-          <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 text-emerald-600" />
-              <h3 className="text-sm font-bold text-slate-900">
-                {activeStats.title} ({displayedSalesList.length})
+          {/* SECTION C: SALES LIST */}
+          <div className="p-3 sm:p-5 space-y-3">
+            
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <CalendarDays className="w-4 h-4 text-emerald-600" />
+                <span>{activeStats.title} ({displayedSalesList.length})</span>
               </h3>
-            </div>
 
-            <div className="flex items-center gap-2">
               {viewScope !== 'ALL' && allSales.length > 0 && (
                 <button
                   onClick={() => setViewScope('ALL')}
-                  className="text-xs text-indigo-600 hover:text-indigo-700 font-bold underline cursor-pointer"
+                  className="text-xs text-indigo-600 hover:text-indigo-800 font-bold underline cursor-pointer"
                 >
-                  عرض جميع المبيعات ({allSales.length})
+                  عرض كافة المبيعات ({allSales.length})
                 </button>
               )}
             </div>
-          </div>
 
-          {/* Sales items list */}
-          {displayedSalesList.length === 0 ? (
-            <div className="text-center py-12 text-slate-400 space-y-3 bg-slate-50/60 rounded-2xl p-6 border border-dashed border-slate-200">
-              <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-300">
-                <CalendarIcon className="w-7 h-7" />
-              </div>
-              <h4 className="text-sm font-bold text-slate-700">لا توجد مبيعات في هذا النطاق المختار</h4>
-              
-              {allSales.length > 0 ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-slate-500 max-w-[320px] mx-auto">
-                    يوجد لديك <strong>{allSales.length} عملية بيع</strong> مسجلة في النظام. يمكنك التبديل إلى "جميع المبيعات" لمشاهدتها فوراً.
-                  </p>
+            {displayedSalesList.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 space-y-2 bg-slate-50/60 rounded-2xl p-6 border border-dashed border-slate-200">
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-300">
+                  <CalendarIcon className="w-6 h-6" />
+                </div>
+                <h4 className="text-xs sm:text-sm font-bold text-slate-700">لا توجد مبيعات في هذا النطاق المختار</h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  {allSales.length > 0
+                    ? `يوجد ${allSales.length} عملية بيع مسجلة في فترات أخرى. انقر على "الكل" أو اختر يوماً آخر من التقويم.`
+                    : 'لم يتم تسجيل أي عمليات بيع حتى الآن.'}
+                </p>
+                {allSales.length > 0 && (
                   <button
                     onClick={() => setViewScope('ALL')}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-2 shadow-sm"
+                    className="mt-2 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
                   >
                     <Layers className="w-3.5 h-3.5" />
                     <span>عرض كل المبيعات المسجلة ({allSales.length})</span>
                   </button>
-                </div>
-              ) : (
-                <p className="text-xs text-slate-500 max-w-[280px] mx-auto">
-                  لم يتم تسجيل أي عمليات بيع حتى الآن. يمكنك تسجيل بيع أي قطعة من بطاقات المخزون عبر زر البيع السريع (-).
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {displayedSalesList.map((sale, idx) => {
-                const qty = Math.abs(sale.quantityDelta) || 1;
-                const price = getSaleAmount(sale, qty);
-                const saleDate = getTxDateStr(sale.timestamp);
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {displayedSalesList.map((sale, idx) => {
+                  const qty = Math.abs(sale.quantityDelta) || 1;
+                  const price = getSaleAmount(sale, qty);
+                  const saleDate = getTxDateStr(sale.timestamp);
 
-                let timeStr = '';
-                if (sale.timestamp) {
-                  try {
-                    timeStr = new Date(sale.timestamp).toLocaleTimeString('ar-SA', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    });
-                  } catch {}
-                }
+                  let timeStr = '';
+                  if (sale.timestamp) {
+                    try {
+                      timeStr = new Date(sale.timestamp).toLocaleTimeString('ar-SA', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      });
+                    } catch {}
+                  }
 
-                return (
-                  <div
-                    key={sale.id || `sale-${idx}`}
-                    className="p-3.5 sm:p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs hover:border-slate-300 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                  >
-                    {/* Left: Product Info */}
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                          {sale.itemName || 'قطعة مباعة'}
-                        </h4>
-                        {sale.partNumber && (
-                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-mono shrink-0">
-                            {sale.partNumber}
+                  return (
+                    <div
+                      key={sale.id || `sale-${idx}`}
+                      className="p-3 sm:p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs hover:border-slate-300 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                    >
+                      {/* Left info */}
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                            {sale.itemName || 'قطعة مباعة'}
+                          </h4>
+                          {sale.partNumber && (
+                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-mono shrink-0">
+                              {sale.partNumber}
+                            </span>
+                          )}
+                          <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold shrink-0">
+                            {saleDate}
                           </span>
+                        </div>
+
+                        <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
+                          {sale.customerName && (
+                            <span className="flex items-center gap-1 text-slate-600">
+                              <User className="w-3.5 h-3.5 text-slate-400" />
+                              {sale.customerName}
+                            </span>
+                          )}
+                          {sale.paymentMethod && (
+                            <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium text-[11px] flex items-center gap-1">
+                              {sale.paymentMethod === 'CASH' && <Coins className="w-3 h-3 text-amber-600" />}
+                              {sale.paymentMethod === 'CARD' && <CreditCard className="w-3 h-3 text-blue-600" />}
+                              {sale.paymentMethod === 'TRANSFER' && <ArrowLeftRight className="w-3 h-3 text-indigo-600" />}
+                              {sale.paymentMethod === 'CREDIT' && <FileText className="w-3 h-3 text-purple-600" />}
+                              {sale.paymentMethod === 'CASH' ? 'نقداً' : sale.paymentMethod === 'CARD' ? 'بطاقة' : sale.paymentMethod === 'TRANSFER' ? 'تحويل' : 'آجل'}
+                            </span>
+                          )}
+                          {timeStr && (
+                            <span className="flex items-center gap-1 text-slate-400 text-[11px]">
+                              <Clock className="w-3.5 h-3.5" />
+                              {timeStr}
+                            </span>
+                          )}
+                        </div>
+
+                        {sale.note && (
+                          <p className="text-[11px] text-slate-400 italic">
+                            ملاحظة: {sale.note}
+                          </p>
                         )}
-                        <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold shrink-0">
-                          {saleDate}
+                      </div>
+
+                      {/* Right price & qty */}
+                      <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 shrink-0">
+                        <div className="text-right sm:text-left">
+                          <span className="text-sm sm:text-base font-black text-emerald-600 font-mono">
+                            {price.toFixed(2)}
+                          </span>
+                          {sale.unitPrice && qty > 1 && (
+                            <span className="text-[11px] text-slate-400 block font-mono">
+                              ({sale.unitPrice.toFixed(2)} × {qty})
+                            </span>
+                          )}
+                        </div>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200">
+                          الكمية: {qty}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
-                        {sale.customerName && (
-                          <span className="flex items-center gap-1 text-slate-600">
-                            <User className="w-3.5 h-3.5 text-slate-400" />
-                            {sale.customerName}
-                          </span>
-                        )}
-                        {sale.paymentMethod && (
-                          <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium text-[11px] flex items-center gap-1">
-                            {sale.paymentMethod === 'CASH' && <Coins className="w-3 h-3 text-amber-600" />}
-                            {sale.paymentMethod === 'CARD' && <CreditCard className="w-3 h-3 text-blue-600" />}
-                            {sale.paymentMethod === 'CASH' ? 'نقداً' : sale.paymentMethod === 'CARD' ? 'بطاقة' : sale.paymentMethod === 'TRANSFER' ? 'تحويل' : 'آجل'}
-                          </span>
-                        )}
-                        {timeStr && (
-                          <span className="flex items-center gap-1 text-slate-400 text-[11px]">
-                            <Clock className="w-3.5 h-3.5" />
-                            {timeStr}
-                          </span>
-                        )}
-                      </div>
-
-                      {sale.note && (
-                        <p className="text-[11px] text-slate-400 italic">
-                          ملاحظة: {sale.note}
-                        </p>
-                      )}
                     </div>
+                  );
+                })}
+              </div>
+            )}
 
-                    {/* Right: Quantity & Price */}
-                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 shrink-0">
-                      <div className="text-right sm:text-left">
-                        <span className="text-sm sm:text-base font-black text-emerald-600">
-                          {price.toFixed(2)}
-                        </span>
-                        {sale.unitPrice && qty > 1 && (
-                          <span className="text-[11px] text-slate-400 block">
-                            ({sale.unitPrice.toFixed(2)} × {qty})
-                          </span>
-                        )}
-                      </div>
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200">
-                        الكمية: {qty}
-                      </span>
-                    </div>
-
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          </div>
 
         </div>
 
-        {/* BOTTOM FOOTER BAR */}
+        {/* 3. BOTTOM FOOTER BAR */}
         <div className="p-3 sm:p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
           <div className="text-xs text-slate-500 hidden sm:block">
-            يمكنك أيضاً الضغط على زر <kbd className="px-1.5 py-0.5 rounded bg-slate-200 border border-slate-300 font-mono text-[10px] text-slate-700">ESC</kbd> أو النقر خارج النافذة للرجوع.
+            {formatArabicDate(selectedDateStr)}
           </div>
 
           <button
-            id="pos-footer-exit-btn"
+            id="pos-footer-close-btn"
             onClick={onClose}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md shadow-slate-900/20 cursor-pointer ml-auto"
+            className="w-full sm:w-auto px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md shadow-slate-900/20 cursor-pointer ml-auto"
           >
             <ArrowRight className="w-4 h-4 text-emerald-400" />
             <span>العودة إلى لوحة المخزون</span>

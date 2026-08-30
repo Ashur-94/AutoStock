@@ -37,7 +37,8 @@ interface AdminPanelModalProps {
   stockItems: StockItem[];
   transactions: StockTransaction[];
   onOpenAddItem: (itemToEdit?: StockItem | null) => void;
-  onOpenInvoiceUpload: () => void;
+  onOpenInvoiceUpload?: () => void;
+  onOpenSalesCalendar?: () => void;
   onIncrementStock: (item: StockItem, delta?: number) => void;
   onDecrementStock: (item: StockItem, delta?: number) => void;
   onDeleteItem: (itemId: string) => void;
@@ -46,7 +47,7 @@ interface AdminPanelModalProps {
   onToggleSound: () => void;
 }
 
-type AdminTab = 'INVENTORY' | 'INVOICES' | 'SALES_LOG' | 'REORDER' | 'SETTINGS';
+type AdminTab = 'INVENTORY' | 'SALES_LOG' | 'REORDER' | 'SETTINGS';
 
 export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   isOpen,
@@ -55,6 +56,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   transactions,
   onOpenAddItem,
   onOpenInvoiceUpload,
+  onOpenSalesCalendar,
   onIncrementStock,
   onDecrementStock,
   onDeleteItem,
@@ -169,18 +171,6 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab('INVOICES')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              activeTab === 'INVOICES'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-            <span>ماسح الفواتير</span>
-          </button>
-
-          <button
             onClick={() => setActiveTab('SALES_LOG')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
               activeTab === 'SALES_LOG'
@@ -246,14 +236,6 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   >
                     <Plus className="w-4 h-4" />
                     <span>إضافة قطعة جديدة</span>
-                  </button>
-
-                  <button
-                    onClick={onOpenInvoiceUpload}
-                    className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                  >
-                    <Camera className="w-4 h-4 text-amber-400" />
-                    <span>مسح فاتورة توريد</span>
                   </button>
                 </div>
               </div>
@@ -361,60 +343,53 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
             </div>
           )}
 
-          {/* TAB 2: AI INVOICE SCANNER */}
-          {activeTab === 'INVOICES' && (
-            <div className="space-y-5 max-w-2xl mx-auto py-6 text-center">
-              <div className="w-16 h-16 rounded-3xl bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
-                <Sparkles className="w-8 h-8" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900">مسح وتوريد الفواتير بالذكاء الاصطناعي</h3>
-              <p className="text-xs text-slate-600 leading-relaxed max-w-md mx-auto">
-                التقط أو ارفع صورة فاتورة الشراء الورقية من مورد قطع الغيار، وسيقوم الذكاء الاصطناعي بقراءة أرقام القطع (SKU)، الكميات، أسعار التكلفة، وتحديث المخزون آلياً.
-              </p>
-              <button
-                onClick={onOpenInvoiceUpload}
-                className="px-6 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm inline-flex items-center gap-2 shadow-lg shadow-slate-900/20 cursor-pointer"
-              >
-                <Camera className="w-5 h-5 text-amber-400" />
-                <span>فتح ماسح الفواتير الآن</span>
-              </button>
-            </div>
-          )}
-
-          {/* TAB 3: SALES & TRANSACTIONS LOG */}
+          {/* TAB 2: SALES & TRANSACTIONS LOG */}
           {activeTab === 'SALES_LOG' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-bold text-slate-700">تصفية السجل:</span>
                   <button
                     onClick={() => setSalesFilter('ALL')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                      salesFilter === 'ALL' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                      salesFilter === 'ALL' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`}
                   >
                     الكل ({transactions.length})
                   </button>
                   <button
                     onClick={() => setSalesFilter('SALE')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                      salesFilter === 'SALE' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                      salesFilter === 'SALE' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`}
                   >
                     مبيعات فقط
                   </button>
                   <button
                     onClick={() => setSalesFilter('INVOICE_RESTOCK')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                      salesFilter === 'INVOICE_RESTOCK' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700'
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                      salesFilter === 'INVOICE_RESTOCK' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`}
                   >
                     توريد فواتير
                   </button>
                 </div>
 
-                <div className="text-left font-mono text-xs font-bold text-emerald-700">
-                  إجمالي إيراد المبيعات: {totalSalesRevenue.toFixed(2)}
+                <div className="flex items-center justify-between sm:justify-end gap-3">
+                  <div className="text-left font-mono text-xs font-bold text-emerald-700">
+                    إجمالي الإيراد: {totalSalesRevenue.toFixed(2)}
+                  </div>
+
+                  {onOpenSalesCalendar && (
+                    <button
+                      onClick={onOpenSalesCalendar}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0"
+                      title="فتح تقويم المبيعات والإيرادات اليومية"
+                    >
+                      <CalendarDays className="w-3.5 h-3.5" />
+                      <span>تقويم المبيعات</span>
+                    </button>
+                  )}
                 </div>
               </div>
 

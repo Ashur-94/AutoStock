@@ -4,8 +4,6 @@ import {
   Search,
   Settings,
   ShoppingCart,
-  Volume2,
-  VolumeX,
   Sparkles,
   Package,
   Plus

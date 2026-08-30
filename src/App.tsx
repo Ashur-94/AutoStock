@@ -17,6 +17,7 @@ import { CashierItemTile } from './components/CashierItemTile';
 import { AdminPanelModal } from './components/AdminPanelModal';
 import { EditItemModal } from './components/EditItemModal';
 import { InvoiceUploadModal } from './components/InvoiceUploadModal';
+import { PosModal } from './components/PosModal';
 import { 
   playSaleSound, 
   playRestockSound, 
@@ -75,6 +76,7 @@ export default function App() {
 
   // 5. Modals State
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isSalesCalendarOpen, setIsSalesCalendarOpen] = useState(false);
   const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<StockItem | null>(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -714,12 +716,24 @@ export default function App() {
           setIsEditItemModalOpen(true);
         }}
         onOpenInvoiceUpload={() => setIsInvoiceModalOpen(true)}
+        onOpenSalesCalendar={() => {
+          setIsAdminOpen(false);
+          setIsSalesCalendarOpen(true);
+        }}
         onIncrementStock={handleIncrementStock}
         onDecrementStock={handleDecrementStock}
         onDeleteItem={handleDeleteItem}
         onResetData={() => setIsResetConfirmOpen(true)}
         soundEnabled={soundEnabled}
         onToggleSound={() => setSoundEnabled((prev) => !prev)}
+      />
+
+      {/* 5. POS & Sales Calendar Modal */}
+      <PosModal
+        isOpen={isSalesCalendarOpen}
+        onClose={() => setIsSalesCalendarOpen(false)}
+        transactions={transactions}
+        stockItems={stockItems}
       />
 
       {/* 5. Add / Edit Item Modal */}
