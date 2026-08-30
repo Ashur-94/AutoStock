@@ -51,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <h1 className="text-sm sm:text-lg font-black tracking-tight text-white truncate">
-                  كاشير قطع الغيار
+                  محل دلدار شرفاني
                 </h1>
                 <span className="hidden md:inline-block px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
                   {stockItems.length} صنف ({totalUnits} قطعة)
@@ -67,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
               <input
                 id="search-items-cashier-input"
                 type="text"
-                placeholder="ابحث بالاسم أو رقم الصنف (SKU)..."
+                placeholder="ابحث باسم القطعة..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 className="w-full pr-9 pl-8 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-xs sm:text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-colors text-right"
@@ -133,7 +133,7 @@ export const Header: React.FC<HeaderProps> = ({
             <input
               id="search-items-cashier-mobile-input"
               type="text"
-              placeholder="ابحث بالاسم أو رقم الصنف..."
+              placeholder="ابحث باسم القطعة..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="w-full pr-8 pl-7 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-xs focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-colors text-right"

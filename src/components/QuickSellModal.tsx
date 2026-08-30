@@ -9,12 +9,9 @@ import {
   Coins, 
   User, 
   CheckCircle2, 
-  AlertTriangle,
-  Layers,
-  ArrowRight
+  AlertTriangle 
 } from 'lucide-react';
 import { StockItem } from '../types';
-import { getCategoryColorStyle } from '../data/defaultStock';
 
 interface QuickSellModalProps {
   isOpen: boolean;
@@ -35,7 +32,6 @@ export const QuickSellModal: React.FC<QuickSellModalProps> = ({
   onClose,
   item,
   onConfirmSale,
-  onOpenFullPos,
 }) => {
   const [quantity, setQuantity] = useState<number>(1);
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'TRANSFER' | 'CREDIT'>('CASH');
@@ -61,8 +57,7 @@ export const QuickSellModal: React.FC<QuickSellModalProps> = ({
 
   const isOutOfStock = item.quantity <= 0;
   const maxAvailable = item.quantity;
-  const categoryStyle = getCategoryColorStyle(item.category);
-  const totalAmount = quantity * item.sellingPrice;
+  const totalAmount = Math.round(quantity * item.sellingPrice);
 
   const handleIncrement = () => {
     if (quantity < maxAvailable) {
@@ -107,10 +102,10 @@ export const QuickSellModal: React.FC<QuickSellModalProps> = ({
             </div>
             <div>
               <h2 id="quick-sell-title" className="text-base font-bold">
-                تسجيل بيع صنف (نقطة البيع)
+                تسجيل بيع صنف
               </h2>
               <p className="text-[11px] text-emerald-100">
-                خصم القطع المباعة فورا وتوثيقها بسجل المبيعات
+                خصم القطع المباعة وتوثيقها بسجل المبيعات
               </p>
             </div>
           </div>
@@ -129,40 +124,19 @@ export const QuickSellModal: React.FC<QuickSellModalProps> = ({
         <form onSubmit={handleSubmit} className="p-5 overflow-y-auto flex-1 space-y-4 text-right">
           
           {/* Item Quick Overview Card */}
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
-            {item.imageUrl ? (
-              <img
-                src={item.imageUrl}
-                alt={item.name}
-                className="w-16 h-16 rounded-xl object-cover border border-slate-200 shrink-0 bg-white"
-              />
-            ) : (
-              <div className="w-16 h-16 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
-                <ShoppingCart className="w-7 h-7" />
-              </div>
-            )}
-
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${categoryStyle.bg} ${categoryStyle.text} ${categoryStyle.border}`}>
-                  {item.category}
-                </span>
-                <span className="font-mono text-[11px] text-amber-700 font-bold bg-white px-1.5 py-0.2 rounded border border-slate-200">
-                  {item.partNumber}
-                </span>
-              </div>
               <h3 className="text-sm font-bold text-slate-900 truncate">
                 {item.name}
               </h3>
               <div className="flex items-center gap-3 text-xs text-slate-600 mt-1">
                 <span>
-                  سعر البيع: <span className="font-mono font-bold text-emerald-600">{item.sellingPrice.toFixed(2)}</span>
-                </span>
-                <span>•</span>
-                <span>
                   المتوفر بالمخزن: <span className={`font-mono font-bold ${maxAvailable <= item.minStockThreshold ? 'text-amber-600' : 'text-slate-800'}`}>{maxAvailable} {item.unit}</span>
                 </span>
               </div>
+            </div>
+            <div className="text-left font-mono font-black text-xl text-emerald-600 shrink-0">
+              {Math.round(item.sellingPrice)}
             </div>
           </div>
 
@@ -262,17 +236,17 @@ export const QuickSellModal: React.FC<QuickSellModalProps> = ({
                 </div>
               </div>
 
-              {/* Total Calculation Display */}
+              {/* Total Calculation Display (No points or dots) */}
               <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
                 <div>
-                  <span className="text-[11px] text-emerald-700 font-semibold block">المبلغ المطلوب من الزبون:</span>
+                  <span className="text-[11px] text-emerald-700 font-semibold block">المبلغ المطلوب:</span>
                   <span className="text-xs text-emerald-600">
-                    {quantity} × {item.sellingPrice.toFixed(2)}
+                    {quantity} × {Math.round(item.sellingPrice)}
                   </span>
                 </div>
                 <div className="text-left" dir="ltr">
                   <span className="font-mono text-2xl font-black text-emerald-800">
-                    {totalAmount.toFixed(2)}
+                    {totalAmount}
                   </span>
                 </div>
               </div>
@@ -312,12 +286,12 @@ export const QuickSellModal: React.FC<QuickSellModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 <div>
                   <label htmlFor="sell-customer-name" className="text-[11px] text-slate-600 font-semibold block mb-1">
-                    اسم العميل أو لوحة السيارة (اختياري):
+                    اسم العميل أو السيارة (اختياري):
                   </label>
                   <input
                     id="sell-customer-name"
                     type="text"
-                    placeholder="مثال: أحمد - كامري 2020"
+                    placeholder="مثال: أحمد - كامري"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 text-xs"
@@ -325,12 +299,12 @@ export const QuickSellModal: React.FC<QuickSellModalProps> = ({
                 </div>
                 <div>
                   <label htmlFor="sell-note-input" className="text-[11px] text-slate-600 font-semibold block mb-1">
-                    ملاحظة على العملية (اختياري):
+                    ملاحظة (اختياري):
                   </label>
                   <input
                     id="sell-note-input"
                     type="text"
-                    placeholder="مثال: خصم خاص، تركيب في الورشة"
+                    placeholder="ملاحظات..."
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 text-xs"
@@ -343,46 +317,29 @@ export const QuickSellModal: React.FC<QuickSellModalProps> = ({
         </form>
 
         {/* Modal Actions Footer */}
-        <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
-          {onOpenFullPos && (
-            <button
-              type="button"
-              id="switch-to-full-pos-btn"
-              onClick={() => {
-                onClose();
-                onOpenFullPos(item);
-              }}
-              className="text-xs text-slate-600 hover:text-emerald-700 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>فتح نقطة البيع المتعددة (POS)</span>
-            </button>
-          )}
+        <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-200 text-xs font-semibold transition-colors cursor-pointer"
+          >
+            إلغاء
+          </button>
 
-          <div className="flex items-center gap-2 ms-auto">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-200 text-xs font-semibold transition-colors cursor-pointer"
-            >
-              إلغاء
-            </button>
-
-            <button
-              id="confirm-sell-item-btn"
-              type="button"
-              onClick={handleSubmit}
-              disabled={isOutOfStock || quantity <= 0}
-              className={`px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer shadow-md ${
-                isOutOfStock || quantity <= 0
-                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
-                  : 'bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white shadow-emerald-600/30'
-              }`}
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>تأكيد بيع الصنف (Count as Sold)</span>
-            </button>
-          </div>
+          <button
+            id="confirm-sell-item-btn"
+            type="button"
+            onClick={handleSubmit}
+            disabled={isOutOfStock || quantity <= 0}
+            className={`px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer shadow-md ${
+              isOutOfStock || quantity <= 0
+                ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                : 'bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white shadow-emerald-600/30'
+            }`}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>تأكيد بيع الصنف</span>
+          </button>
         </div>
 
       </div>

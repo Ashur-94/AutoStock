@@ -5,12 +5,9 @@ import {
   AlertTriangle, 
   Edit3, 
   CheckCircle2,
-  Package,
-  Wrench,
   ShoppingCart
 } from 'lucide-react';
 import { StockItem } from '../types';
-import { getCategoryColorStyle } from '../data/defaultStock';
 
 interface StockCardProps {
   item: StockItem;
@@ -34,11 +31,9 @@ export const StockCard: React.FC<StockCardProps> = ({
   const [isEditingQty, setIsEditingQty] = useState(false);
   const [tempQty, setTempQty] = useState(String(item.quantity));
   const [lastAction, setLastAction] = useState<'inc' | 'dec' | null>(null);
-  const [imageError, setImageError] = useState(false);
 
   const isOutOfStock = item.quantity === 0;
   const isLowStock = !isOutOfStock && item.quantity <= item.minStockThreshold;
-  const categoryStyle = getCategoryColorStyle(item.category);
 
   const handleManualQtySubmit = () => {
     const val = parseInt(tempQty, 10);
@@ -67,7 +62,6 @@ export const StockCard: React.FC<StockCardProps> = ({
     <div
       id={`stock-card-${item.id}`}
       onClick={(e) => {
-        // If clicking interactive buttons or inputs, don't trigger card click
         const target = e.target as HTMLElement;
         if (
           target.closest('button') ||
@@ -90,97 +84,62 @@ export const StockCard: React.FC<StockCardProps> = ({
     >
       {/* Top Accent Strip */}
       <div 
-        className={`h-1 w-full ${
+        className={`h-1.5 w-full ${
           isOutOfStock
             ? 'bg-rose-500 animate-pulse'
             : isLowStock
             ? 'bg-amber-500'
-            : 'bg-slate-200'
+            : 'bg-emerald-500'
         }`}
       />
-
-      {/* Item Image Box */}
-      <div className="relative h-36 sm:h-40 w-full bg-slate-100 overflow-hidden shrink-0">
-        {item.imageUrl && !imageError ? (
-          <img
-            src={item.imageUrl}
-            alt={item.name}
-            onError={() => setImageError(true)}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200 text-slate-500 p-4">
-            <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 mb-1 shadow-sm">
-              <Wrench className="w-6 h-6" />
-            </div>
-            <span className="text-[11px] text-slate-500 font-medium">{item.category}</span>
-          </div>
-        )}
-
-        {/* Floating Top Badges (Category + Stock State + Edit Button) */}
-        <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between gap-1.5 pointer-events-auto">
-          {/* Category Tag */}
-          <span
-            className={`text-[11px] font-bold px-2.5 py-0.5 rounded-lg backdrop-blur-md border shadow-sm ${categoryStyle.bg} ${categoryStyle.text} ${categoryStyle.border} bg-white/90`}
-          >
-            {item.category}
-          </span>
-
-          <div className="flex items-center gap-1.5">
-            {/* Stock State Indicator */}
-            {isOutOfStock ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-rose-600 text-white backdrop-blur-md shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                نفد المخزون
-              </span>
-            ) : isLowStock ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-400 text-slate-950 backdrop-blur-md shadow-sm">
-                <AlertTriangle className="w-3 h-3 text-slate-950" />
-                منخفض ({item.quantity})
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 backdrop-blur-md">
-                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                متوفر
-              </span>
-            )}
-
-            {/* Quick Edit Pencil Button */}
-            <button
-              id={`edit-item-${item.id}-btn`}
-              onClick={() => onEdit(item)}
-              className="w-7 h-7 rounded-lg bg-white/90 hover:bg-white text-slate-700 border border-slate-200 backdrop-blur-md flex items-center justify-center transition-colors shadow-sm cursor-pointer"
-              title="تعديل بيانات القطعة أو الصورة"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Floating Part Number Pill at bottom of image */}
-        <div className="absolute bottom-2 right-2.5 z-10">
-          <span className="font-mono text-xs font-extrabold px-2 py-0.5 rounded-md bg-white/95 text-amber-700 border border-amber-300 shadow-sm tracking-wider">
-            {item.partNumber}
-          </span>
-        </div>
-      </div>
 
       {/* Card Content Area */}
       <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between space-y-3">
         
-        {/* Part Details */}
+        {/* Top: Status & Edit Button */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            {/* Stock State Indicator */}
+            {isOutOfStock ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200">
+                نفد المخزون
+              </span>
+            ) : isLowStock ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                <AlertTriangle className="w-3 h-3 text-amber-700" />
+                منخفض ({item.quantity})
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                متوفر
+              </span>
+            )}
+          </div>
+
+          {/* Quick Edit Button */}
+          <button
+            id={`edit-item-${item.id}-btn`}
+            onClick={() => onEdit(item)}
+            className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 flex items-center justify-center transition-colors cursor-pointer"
+            title="تعديل بيانات القطعة"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Part Name */}
         <div>
-          {/* Part Name */}
           <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug line-clamp-2 text-right">
             {item.name}
           </h3>
         </div>
 
-        {/* Pricing Details - Selling Price Only */}
+        {/* Pricing Details - Selling Price Only (No points or dots) */}
         <div className="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 border border-slate-200">
           <span className="text-xs text-slate-600 font-bold">سعر البيع:</span>
-          <span className="font-mono font-black text-base sm:text-lg text-amber-600">
-            {item.sellingPrice.toFixed(2)}
+          <span className="font-mono font-black text-base sm:text-lg text-emerald-600">
+            {Math.round(item.sellingPrice)}
           </span>
         </div>
 
@@ -208,7 +167,7 @@ export const StockCard: React.FC<StockCardProps> = ({
             title={item.quantity <= 0 ? 'نفد المخزون - لا يمكن البيع' : 'بيع هذه القطعة وتسجيلها في نقطة البيع'}
           >
             <ShoppingCart className="w-4 h-4 shrink-0" />
-            <span>{item.quantity <= 0 ? 'نفد المخزون' : 'بيع القطعة (Sell Item)'}</span>
+            <span>{item.quantity <= 0 ? 'نفد المخزون' : 'بيع القطعة'}</span>
           </button>
 
           {/* Quick Quantity Adjustment Stepper */}

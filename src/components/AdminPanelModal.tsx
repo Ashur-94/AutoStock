@@ -73,11 +73,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     const q = searchQuery.toLowerCase().trim();
     if (!q) return stockItems;
     return stockItems.filter(
-      (item) =>
-        item.name.toLowerCase().includes(q) ||
-        item.partNumber.toLowerCase().includes(q) ||
-        (item.location && item.location.toLowerCase().includes(q)) ||
-        (item.supplier && item.supplier.toLowerCase().includes(q))
+      (item) => item.name.toLowerCase().includes(q)
     );
   }, [stockItems, searchQuery]);
 
@@ -220,7 +216,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    placeholder="ابحث بالاسم، SKU، الموقع، المورد..."
+                    placeholder="ابحث بالاسم..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pr-9 pl-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm focus:outline-none focus:border-amber-500 text-right"
@@ -247,18 +243,16 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     <thead className="bg-slate-900 text-white font-bold">
                       <tr>
                         <th className="p-3">اسم القطعة</th>
-                        <th className="p-3">رقم الصنف (SKU)</th>
                         <th className="p-3">الكمية بالمخزن</th>
                         <th className="p-3">سعر التكلفة</th>
                         <th className="p-3">سعر البيع</th>
-                        <th className="p-3">الموقع / المورد</th>
                         <th className="p-3 text-center">إجراءات</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {filteredStock.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="p-8 text-center text-slate-400">
+                          <td colSpan={5} className="p-8 text-center text-slate-400">
                             لا توجد قطع مطابقة للبحث
                           </td>
                         </tr>
@@ -269,9 +263,6 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                             <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
                               <td className="p-3 font-bold text-slate-900">
                                 {item.name}
-                              </td>
-                              <td className="p-3 font-mono text-slate-600">
-                                {item.partNumber}
                               </td>
                               <td className="p-3">
                                 <div className="flex items-center gap-1.5">
@@ -301,13 +292,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                 </div>
                               </td>
                               <td className="p-3 font-mono text-slate-600">
-                                {item.costPrice.toFixed(2)}
+                                {Math.round(item.costPrice)}
                               </td>
                               <td className="p-3 font-mono font-bold text-emerald-600">
-                                {item.sellingPrice.toFixed(2)}
-                              </td>
-                              <td className="p-3 text-slate-500">
-                                {item.location || item.supplier || '—'}
+                                {Math.round(item.sellingPrice)}
                               </td>
                               <td className="p-3">
                                 <div className="flex items-center justify-center gap-1">
@@ -377,7 +365,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
                 <div className="flex items-center justify-between sm:justify-end gap-3">
                   <div className="text-left font-mono text-xs font-bold text-emerald-700">
-                    إجمالي الإيراد: {totalSalesRevenue.toFixed(2)}
+                    إجمالي الإيراد: {Math.round(totalSalesRevenue)}
                   </div>
 
                   {onOpenSalesCalendar && (
@@ -409,11 +397,6 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-900">{tx.itemName}</span>
-                            {tx.partNumber && (
-                              <span className="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                                {tx.partNumber}
-                              </span>
-                            )}
                             <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
                               isSale ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
                             }`}>
@@ -430,7 +413,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
                         <div className="text-left font-mono font-bold">
                           <span className={`text-sm ${isSale ? 'text-emerald-600' : 'text-blue-600'}`}>
-                            {isSale ? `+${(tx.totalPrice || 0).toFixed(2)}` : `+${tx.quantityDelta} قطعة`}
+                            {isSale ? `+${Math.round(tx.totalPrice || 0)}` : `+${tx.quantityDelta} قطعة`}
                           </span>
                         </div>
                       </div>
@@ -495,11 +478,11 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 </div>
                 <div className="flex justify-between text-slate-600 py-1 border-b border-slate-100">
                   <span>القيمة بسعر البيع:</span>
-                  <span className="font-bold font-mono text-emerald-600">{totalStockValue.toFixed(2)}</span>
+                  <span className="font-bold font-mono text-emerald-600">{Math.round(totalStockValue)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600 py-1">
                   <span>القيمة بسعر التكلفة:</span>
-                  <span className="font-bold font-mono text-slate-800">{totalStockCost.toFixed(2)}</span>
+                  <span className="font-bold font-mono text-slate-800">{Math.round(totalStockCost)}</span>
                 </div>
               </div>
 

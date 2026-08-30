@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Check, AlertTriangle, XCircle } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { StockItem } from '../types';
 
 interface CashierItemTileProps {
@@ -16,19 +16,23 @@ export const CashierItemTile: React.FC<CashierItemTileProps> = ({
   cartQuantity = 0,
 }) => {
   const isOutOfStock = item.quantity === 0;
-  const isLowStock = item.quantity > 0 && item.quantity <= item.minStockThreshold;
 
   return (
     <button
       type="button"
       id={`item-tile-${item.id}`}
-      onClick={() => onAddToCart(item)}
-      className={`group relative w-full text-right p-3.5 sm:p-4 rounded-2xl border transition-all duration-150 flex flex-col justify-between min-h-[92px] sm:min-h-[105px] select-none cursor-pointer active:scale-[0.98] ${
+      onClick={() => {
+        if (!isInCart && !isOutOfStock) {
+          onAddToCart(item);
+        }
+      }}
+      disabled={isOutOfStock}
+      className={`group relative w-full text-right p-3.5 sm:p-4 rounded-2xl border transition-all duration-150 flex flex-col justify-between min-h-[92px] sm:min-h-[105px] select-none ${
         isOutOfStock
-          ? 'bg-slate-100/80 border-slate-200 opacity-70 hover:opacity-90 hover:border-slate-300'
+          ? 'bg-slate-100/80 border-slate-200 opacity-60 cursor-not-allowed'
           : isInCart
-          ? 'bg-amber-50/70 border-amber-300 shadow-sm ring-1 ring-amber-400/40 hover:bg-amber-50'
-          : 'bg-white border-slate-200 hover:border-amber-400 hover:shadow-md hover:bg-slate-50/50'
+          ? 'bg-emerald-50/80 border-emerald-400 shadow-sm ring-1 ring-emerald-400/40 cursor-default'
+          : 'bg-white border-slate-200 hover:border-amber-400 hover:shadow-md hover:bg-slate-50/50 cursor-pointer active:scale-[0.98]'
       }`}
     >
       {/* Top row: Item Name */}
@@ -38,29 +42,30 @@ export const CashierItemTile: React.FC<CashierItemTileProps> = ({
             {item.name}
           </h3>
 
-          {/* Cart Quantity Badge if in cart */}
-          {isInCart && cartQuantity > 0 && (
-            <span className="shrink-0 px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-[11px] font-mono shadow-xs">
-              {cartQuantity}×
+          {/* Cart Status Badge */}
+          {isInCart && (
+            <span className="shrink-0 px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold text-[11px] flex items-center gap-1 shadow-xs">
+              <Check className="w-3 h-3 stroke-[3]" />
+              <span>بالسلة ({cartQuantity})</span>
             </span>
           )}
         </div>
-
-        {/* SKU / Part Number */}
-        <span className="text-[10px] sm:text-[11px] font-mono text-slate-400 block mt-1">
-          {item.partNumber}
-        </span>
       </div>
 
-      {/* Bottom row: Price */}
+      {/* Bottom row: Price (No points or dots) */}
       <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 w-full">
-        {/* Selling Price */}
         <div className="flex items-baseline gap-0.5">
           <span className="text-sm sm:text-base font-black font-mono text-emerald-600">
-            {item.sellingPrice.toFixed(2)}
+            {Math.round(item.sellingPrice)}
           </span>
         </div>
+        {isInCart && (
+          <span className="text-[10px] text-slate-400 font-medium">
+            عدل الكمية من السلة
+          </span>
+        )}
       </div>
     </button>
   );
 };
+

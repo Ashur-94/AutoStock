@@ -225,8 +225,8 @@ export const InvoiceUploadModal: React.FC<InvoiceUploadModalProps> = ({
     const updated = [...parsedResult.items];
     updated[index] = { 
       ...updated[index], 
-      unitCost: newCost,
-      suggestedSellingPrice: Number((newCost * 1.5).toFixed(2)) 
+      unitCost: Math.round(newCost),
+      suggestedSellingPrice: Math.round(newCost * 1.5) 
     };
     setParsedResult({ ...parsedResult, items: updated });
   };
@@ -489,7 +489,7 @@ export const InvoiceUploadModal: React.FC<InvoiceUploadModalProps> = ({
                   <div>
                     <span className="text-[9px] sm:text-[10px] text-slate-500 block">الإجمالي</span>
                     <span className="text-emerald-700 font-bold text-xs sm:text-sm" dir="ltr">
-                      {parsedResult.totalAmount.toFixed(2)}
+                      {Math.round(parsedResult.totalAmount)}
                     </span>
                   </div>
                   {uploadedStorageUrl && (

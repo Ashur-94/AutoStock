@@ -4,7 +4,7 @@ export interface StockItem {
   id: string;
   partNumber: string;
   name: string;
-  category: PartCategory;
+  category?: PartCategory;
   imageUrl?: string;
   quantity: number;
   minStockThreshold: number;
@@ -20,7 +20,7 @@ export interface StockItem {
 export interface InvoiceExtractedItem {
   partNumber: string;
   name: string;
-  category: PartCategory;
+  category?: PartCategory;
   imageUrl?: string;
   quantity: number;
   unitCost: number;

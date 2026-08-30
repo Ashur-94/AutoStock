@@ -1,6 +1,6 @@
 {
   "name": "Remix AutoStock Mechanic Inventory",
-  "description": "AI-powered stock manager for mechanic shops to automatically scan supplier invoice photos, quickly adjust quantities with single-click steppers, and monitor low-stock supply alerts in full Arabic RTL.",
+  "description": "نظام إدارة مخزون وقطع غيار ومبيعات محل دلدار شرفاني مع نقطة بيع فورية، وسجل مبيعات متكامل، وإدارة سلسة للمخزون باللغة العربية.",
   "requestFramePermissions": [
     "camera"
   ],

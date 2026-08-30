@@ -521,7 +521,7 @@ export const PosModal: React.FC<PosModalProps> = ({
                       {MONTH_NAMES_AR[currentMonth]} {currentYear}
                     </span>
                     <span className="text-[11px] text-emerald-700 font-bold block">
-                      إيراد الشهر: {monthStats.revenue.toFixed(2)} ({monthStats.count} مبيعات)
+                      إيراد الشهر: {Math.round(monthStats.revenue)} ({monthStats.count} مبيعات)
                     </span>
                   </div>
 
@@ -590,7 +590,7 @@ export const PosModal: React.FC<PosModalProps> = ({
                                   : 'text-emerald-800 bg-emerald-200/60'
                               }`}
                             >
-                              {day.totalRevenue.toFixed(0)}
+                              {Math.round(day.totalRevenue)}
                             </span>
                           </div>
                         )}
@@ -690,7 +690,7 @@ export const PosModal: React.FC<PosModalProps> = ({
                   إجمالي إيراد {viewScope === 'ALL' ? 'الكل' : viewScope === 'TODAY' ? 'اليوم' : viewScope === 'MONTH' ? 'الشهر' : 'اليوم المحدد'}
                 </span>
                 <span className="text-sm sm:text-base font-black text-emerald-600 font-mono block mt-0.5">
-                  {activeStats.revenue.toFixed(2)}
+                  {Math.round(activeStats.revenue)}
                 </span>
               </div>
 
@@ -711,7 +711,7 @@ export const PosModal: React.FC<PosModalProps> = ({
               <div className="bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-200">
                 <span className="text-[11px] font-semibold text-slate-500 block">كافة المبيعات (الكل)</span>
                 <span className="text-sm sm:text-base font-black text-indigo-600 font-mono block mt-0.5">
-                  {allTimeStats.totalRevenue.toFixed(2)}
+                  {Math.round(allTimeStats.totalRevenue)}
                 </span>
               </div>
 
@@ -831,11 +831,11 @@ export const PosModal: React.FC<PosModalProps> = ({
                       <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 shrink-0">
                         <div className="text-right sm:text-left">
                           <span className="text-sm sm:text-base font-black text-emerald-600 font-mono">
-                            {price.toFixed(2)}
+                            {Math.round(price)}
                           </span>
                           {sale.unitPrice && qty > 1 && (
                             <span className="text-[11px] text-slate-400 block font-mono">
-                              ({sale.unitPrice.toFixed(2)} × {qty})
+                              ({Math.round(sale.unitPrice)} × {qty})
                             </span>
                           )}
                         </div>

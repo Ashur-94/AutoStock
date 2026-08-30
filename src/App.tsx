@@ -211,32 +211,24 @@ export default function App() {
   // CASHIER CART ACTIONS
   // ----------------------------------------------------
 
-  // Add Item to Cart (Tap on Item in the Grid)
+  // Add Item to Cart (Tap on Item in the Grid - Single Click to Add)
   const handleAddToCart = (item: StockItem) => {
     setLastReceipt(null); // Dismiss previous receipt if any
     setCart((prev) => {
       const existingIndex = prev.findIndex((ci) => ci.item.id === item.id);
       if (existingIndex >= 0) {
-        const existing = prev[existingIndex];
-        const newQty = existing.quantity + 1;
-        const updated = [...prev];
-        updated[existingIndex] = {
-          ...existing,
-          quantity: newQty,
-          totalPrice: existing.unitPrice * newQty,
-        };
-        return updated;
-      } else {
-        return [
-          ...prev,
-          {
-            item,
-            quantity: 1,
-            unitPrice: item.sellingPrice,
-            totalPrice: item.sellingPrice,
-          },
-        ];
+        // User can only click once from catalog; quantity increases happen in the cart
+        return prev;
       }
+      return [
+        ...prev,
+        {
+          item,
+          quantity: 1,
+          unitPrice: Math.round(item.sellingPrice),
+          totalPrice: Math.round(item.sellingPrice),
+        },
+      ];
     });
 
     playRestockSound();
@@ -309,13 +301,13 @@ export default function App() {
         if (idx !== -1) {
           const prevQty = updated[idx].quantity;
           const newQty = Math.max(0, prevQty - cartItem.quantity);
-          const lineTotal = cartItem.unitPrice * cartItem.quantity;
+          const lineTotal = Math.round(cartItem.unitPrice * cartItem.quantity);
           totalSaleAmount += lineTotal;
 
           soldReceiptItems.push({
             itemName: updated[idx].name,
             quantity: cartItem.quantity,
-            unitPrice: cartItem.unitPrice,
+            unitPrice: Math.round(cartItem.unitPrice),
             totalPrice: lineTotal,
           });
 
@@ -335,11 +327,11 @@ export default function App() {
             previousQuantity: prevQty,
             newQuantity: newQty,
             timestamp: new Date().toISOString(),
-            unitPrice: cartItem.unitPrice,
+            unitPrice: Math.round(cartItem.unitPrice),
             totalPrice: lineTotal,
             customerName,
             paymentMethod,
-            note: note || `بيع كاشير (${receiptNumber}): ${cartItem.quantity} ${updated[idx].unit} بسعر ${cartItem.unitPrice}`,
+            note: note || `بيع كاشير (${receiptNumber}): ${cartItem.quantity} ${updated[idx].unit} بسعر ${Math.round(cartItem.unitPrice)}`,
           };
           newTransactions.push(tx);
           saveTransactionToDB(tx);
@@ -355,7 +347,7 @@ export default function App() {
     setLastReceipt({
       receiptNumber,
       items: soldReceiptItems,
-      totalAmount: totalSaleAmount,
+      totalAmount: Math.round(totalSaleAmount),
       paymentMethod,
       customerName,
       timestamp: new Date().toISOString(),
@@ -366,7 +358,7 @@ export default function App() {
 
     showToast(
       'تم إتمام البيع بنجاح!',
-      `تم إصدار الفاتورة رقم ${receiptNumber} بقيمة ${totalSaleAmount.toFixed(2)} وخصم الكميات من المخزون.`,
+      `تم إصدار الفاتورة رقم ${receiptNumber} بقيمة ${Math.round(totalSaleAmount)} وخصم الكميات من المخزون.`,
       'success'
     );
   };
@@ -505,8 +497,8 @@ export default function App() {
           quantity: extracted.quantity,
           minStockThreshold: 3,
           unit: extracted.unit || 'قطعة',
-          costPrice: extracted.unitCost || 10.0,
-          sellingPrice: extracted.suggestedSellingPrice || Number(((extracted.unitCost || 10.0) * 1.4).toFixed(2)),
+          costPrice: Math.round(extracted.unitCost || 10),
+          sellingPrice: Math.round(extracted.suggestedSellingPrice || ((extracted.unitCost || 10) * 1.4)),
           location: extracted.locationSuggestion || 'المستودع الرئيسي',
           supplier: invoiceData.supplierName || 'مورد قطع الغيار',
           lastUpdated: new Date().toISOString(),
