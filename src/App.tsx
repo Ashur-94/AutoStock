@@ -317,6 +317,9 @@ export default function App() {
             lastUpdated: new Date().toISOString(),
           };
 
+          const itemCost = updated[idx].costPrice || 0;
+          const lineCost = Math.round(itemCost * cartItem.quantity);
+
           const tx: StockTransaction = {
             id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
             itemId: updated[idx].id,
@@ -329,6 +332,8 @@ export default function App() {
             timestamp: new Date().toISOString(),
             unitPrice: Math.round(cartItem.unitPrice),
             totalPrice: lineTotal,
+            unitCost: itemCost,
+            totalCost: lineCost,
             customerName,
             paymentMethod,
             note: note || `بيع كاشير (${receiptNumber}): ${cartItem.quantity} ${updated[idx].unit} بسعر ${Math.round(cartItem.unitPrice)}`,
@@ -371,6 +376,7 @@ export default function App() {
     const currentItem = stockItems.find((i) => i.id === item.id) || item;
     const prevQty = currentItem.quantity;
     const newQty = prevQty + delta;
+    const itemCost = currentItem.costPrice || 0;
 
     setStockItems((prev) =>
       prev.map((i) => (i.id === item.id ? { ...i, quantity: newQty, lastUpdated: new Date().toISOString() } : i))
@@ -386,6 +392,8 @@ export default function App() {
       previousQuantity: prevQty,
       newQuantity: newQty,
       timestamp: new Date().toISOString(),
+      unitCost: itemCost,
+      totalCost: itemCost * delta,
       note: `توريد يدوي +${delta} ${currentItem.unit}`,
     };
 
@@ -399,6 +407,7 @@ export default function App() {
     if (currentItem.quantity <= 0) return;
     const prevQty = currentItem.quantity;
     const newQty = Math.max(0, prevQty - delta);
+    const itemCost = currentItem.costPrice || 0;
 
     setStockItems((prev) =>
       prev.map((i) => (i.id === item.id ? { ...i, quantity: newQty, lastUpdated: new Date().toISOString() } : i))
@@ -416,6 +425,8 @@ export default function App() {
       timestamp: new Date().toISOString(),
       unitPrice: currentItem.sellingPrice,
       totalPrice: currentItem.sellingPrice * delta,
+      unitCost: itemCost,
+      totalCost: itemCost * delta,
       note: `خصم يدوي -${delta} ${currentItem.unit}`,
     };
 
@@ -485,6 +496,8 @@ export default function App() {
           newQuantity: newQty,
           timestamp: new Date().toISOString(),
           invoiceNumber: invoiceData.invoiceNumber,
+          unitCost: extracted.unitCost || existing.costPrice,
+          totalCost: (extracted.unitCost || existing.costPrice) * extracted.quantity,
           note: `توريد بموجب فاتورة رقم ${invoiceData.invoiceNumber} (${invoiceData.supplierName})`,
         });
       } else {
@@ -518,6 +531,8 @@ export default function App() {
           newQuantity: extracted.quantity,
           timestamp: new Date().toISOString(),
           invoiceNumber: invoiceData.invoiceNumber,
+          unitCost: newItem.costPrice,
+          totalCost: newItem.costPrice * extracted.quantity,
           note: `صنف جديد تم تصنيفه آلياً من فاتورة ${invoiceData.invoiceNumber}`,
         });
       }

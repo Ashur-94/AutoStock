@@ -180,11 +180,8 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-900">{t.itemName}</span>
-                        <span className="font-mono text-[10px] text-amber-800 bg-white px-1.5 py-0.2 rounded border border-slate-200" dir="ltr">
-                          {t.partNumber}
-                        </span>
                       </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
+                      <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2 flex-wrap">
                         <span>
                           {t.note || (isSale ? 'بيع مباشر في الورشة' : isInvoice ? 'توريد عبر مسح الفاتورة' : 'تعديل جرد يدوي')}
                         </span>
@@ -193,20 +190,35 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
                             • فاتورة رقم: {t.invoiceNumber}
                           </span>
                         )}
+                        {t.customerName && (
+                          <span className="text-slate-600 font-medium">
+                            • العميل: {t.customerName}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="text-left shrink-0" dir="ltr">
+                  <div className="text-left shrink-0 font-mono" dir="ltr">
                     <div
-                      className={`font-mono font-bold text-sm ${
+                      className={`font-bold text-sm ${
                         t.quantityDelta > 0 ? 'text-emerald-600' : 'text-rose-600'
                       }`}
                     >
                       {t.quantityDelta > 0 ? `+${t.quantityDelta}` : t.quantityDelta}
                     </div>
-                    <div className="text-[10px] text-slate-400 mt-0.5 font-mono">
-                      {new Date(t.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    {isSale && (t.totalPrice || t.unitPrice) && (
+                      <div className="text-[10px] text-slate-600 mt-0.5 font-bold">
+                        {Math.round(t.totalPrice || (t.unitPrice ? t.unitPrice * Math.abs(t.quantityDelta) : 0))}
+                      </div>
+                    )}
+                    {typeof t.totalCost === 'number' && t.totalCost > 0 && (
+                      <div className="text-[9px] text-slate-400">
+                        التكلفة: {Math.round(t.totalCost)}
+                      </div>
+                    )}
+                    <div className="text-[10px] text-slate-400 mt-0.5">
+                      {new Date(t.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
                 </div>

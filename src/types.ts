@@ -58,6 +58,8 @@ export interface StockTransaction {
   invoiceNumber?: string;
   unitPrice?: number;
   totalPrice?: number;
+  unitCost?: number;
+  totalCost?: number;
   customerName?: string;
   paymentMethod?: string;
 }

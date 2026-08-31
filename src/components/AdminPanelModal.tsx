@@ -87,6 +87,22 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       .reduce((acc, t) => acc + (t.totalPrice || (t.unitPrice ? t.unitPrice * Math.abs(t.quantityDelta) : 0)), 0);
   }, [transactions]);
 
+  // Total sales cost (based on item original buy / cost price)
+  const totalSalesCost = useMemo(() => {
+    return transactions
+      .filter((t) => (t.type || '').toUpperCase() === 'SALE' || t.quantityDelta < 0)
+      .reduce((acc, t) => {
+        const qty = Math.abs(t.quantityDelta || 1);
+        if (typeof t.totalCost === 'number' && t.totalCost > 0) return acc + t.totalCost;
+        if (typeof t.unitCost === 'number' && t.unitCost > 0) return acc + t.unitCost * qty;
+        const matchedItem = stockItems.find((i) => i.id === t.itemId);
+        const cost = matchedItem ? (matchedItem.costPrice || 0) : 0;
+        return acc + cost * qty;
+      }, 0);
+  }, [transactions, stockItems]);
+
+  const totalNetProfit = totalSalesRevenue - totalSalesCost;
+
   const totalStockValue = useMemo(() => {
     return stockItems.reduce((acc, i) => acc + i.quantity * i.sellingPrice, 0);
   }, [stockItems]);
@@ -308,15 +324,28 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
           {/* TAB 2: SALES & TRANSACTIONS LOG */}
           {activeTab === 'SALES_LOG' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
-                <div className="font-mono text-xs font-bold text-emerald-700">
-                  إجمالي الإيراد: {Math.round(totalSalesRevenue)}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
+                <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 text-xs font-mono">
+                  <div className="bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+                    <span className="text-[10px] text-emerald-700 block font-sans font-bold">إجمالي الإيراد</span>
+                    <span className="text-sm font-bold text-emerald-800">{Math.round(totalSalesRevenue)}</span>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
+                    <span className="text-[10px] text-slate-500 block font-sans font-bold">إجمالي التكلفة</span>
+                    <span className="text-sm font-bold text-slate-800">{Math.round(totalSalesCost)}</span>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
+                    <span className="text-[10px] text-amber-700 block font-sans font-bold">صافي الأرباح</span>
+                    <span className={`text-sm font-bold ${totalNetProfit >= 0 ? 'text-amber-900' : 'text-rose-600'}`}>
+                      {totalNetProfit >= 0 ? `+${Math.round(totalNetProfit)}` : Math.round(totalNetProfit)}
+                    </span>
+                  </div>
                 </div>
 
                 {onOpenSalesCalendar && (
                   <button
                     onClick={onOpenSalesCalendar}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0"
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0"
                     title="فتح تقويم المبيعات والإيرادات اليومية"
                   >
                     <CalendarDays className="w-3.5 h-3.5" />
@@ -333,32 +362,65 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 ) : (
                   salesTransactions.map((tx) => {
                     const isSale = (tx.type || '').toUpperCase() === 'SALE' || tx.quantityDelta < 0;
+                    const qty = Math.abs(tx.quantityDelta || 1);
+                    const matchedItem = stockItems.find((i) => i.id === tx.itemId);
+                    const unitCost = typeof tx.unitCost === 'number' && tx.unitCost > 0
+                      ? tx.unitCost
+                      : (matchedItem?.costPrice || 0);
+                    const totalCost = typeof tx.totalCost === 'number' && tx.totalCost > 0
+                      ? tx.totalCost
+                      : unitCost * qty;
+                    const saleTotal = tx.totalPrice || (tx.unitPrice ? tx.unitPrice * qty : 0);
+                    const profit = saleTotal - totalCost;
+
                     return (
                       <div
                         key={tx.id}
-                        className="p-3 bg-white rounded-2xl border border-slate-200 flex items-center justify-between gap-3 text-xs"
+                        className="p-3.5 bg-white rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs shadow-2xs"
                       >
-                        <div>
-                          <div className="flex items-center gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-slate-900">{tx.itemName}</span>
                             <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
                               isSale ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
                             }`}>
-                              {isSale ? 'عملية بيع' : 'توريد مخزون'}
+                              {isSale ? `عملية بيع (${qty} قطعة)` : `توريد مخزون (+${tx.quantityDelta})`}
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-3 text-slate-500 mt-1 text-[11px]">
+                          <div className="flex items-center gap-3 text-slate-500 mt-1.5 text-[11px] flex-wrap">
                             {tx.customerName && <span>العميل: {tx.customerName}</span>}
                             {tx.paymentMethod && <span>الدفع: {tx.paymentMethod}</span>}
                             <span>{new Date(tx.timestamp).toLocaleString('ar-SA')}</span>
                           </div>
                         </div>
 
-                        <div className="text-left font-mono font-bold">
-                          <span className={`text-sm ${isSale ? 'text-emerald-600' : 'text-blue-600'}`}>
-                            {isSale ? `+${Math.round(tx.totalPrice || 0)}` : `+${tx.quantityDelta} قطعة`}
-                          </span>
+                        <div className="text-left font-mono shrink-0 flex sm:flex-col items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
+                          {isSale ? (
+                            <>
+                              <div className="text-sm font-bold text-emerald-600">
+                                +{Math.round(saleTotal)}
+                              </div>
+                              <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
+                                <span>التكلفة: <strong className="text-slate-700 font-bold">{Math.round(totalCost)}</strong></span>
+                                <span>•</span>
+                                <span className={profit >= 0 ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}>
+                                  الربح: {profit >= 0 ? `+${Math.round(profit)}` : Math.round(profit)}
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-sm font-bold text-blue-600">
+                                +{tx.quantityDelta} قطعة
+                              </div>
+                              {totalCost > 0 && (
+                                <div className="text-[11px] text-slate-500 mt-0.5">
+                                  تكلفة التوريد: <strong className="text-slate-700 font-bold">{Math.round(totalCost)}</strong>
+                                </div>
+                              )}
+                            </>
+                          )}
                         </div>
                       </div>
                     );

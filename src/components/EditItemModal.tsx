@@ -56,9 +56,9 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
         quantity: 10,
         minStockThreshold: 5,
         unit: 'قطعة',
-        costPrice: 15,
-        sellingPrice: 25,
-        location: 'المسار 1 - الرف أ',
+        costPrice: 0,
+        sellingPrice: 0,
+        location: '',
         supplier: '',
         notes: '',
       });
@@ -107,7 +107,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                 {itemToEdit ? 'تعديل بيانات الصنف' : 'إضافة قطعة غيار جديدة'}
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-500 truncate">
-                {itemToEdit ? itemToEdit.name : 'أدخل اسم القطعة والكمية وسعر البيع'}
+                {itemToEdit ? itemToEdit.name : 'أدخل اسم القطعة والكمية وسعر الشراء وسعر البيع'}
               </p>
             </div>
           </div>
@@ -211,25 +211,46 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
             </div>
           </div>
 
-          {/* 3. Pricing: Selling Price (No points or dots) */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              سعر البيع (بدون كسور أو فواصل) *
-            </label>
-            <input
-              type="number"
-              step="1"
-              min="0"
-              required
-              value={formData.sellingPrice === 0 ? '' : formData.sellingPrice}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10) || 0;
-                setFormData({ ...formData, sellingPrice: val, costPrice: val });
-              }}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 font-mono font-bold text-emerald-600 text-base focus:outline-none focus:bg-white focus:border-amber-500 text-left"
-              dir="ltr"
-              placeholder="0"
-            />
+          {/* 3. Pricing: Original Buy Price & Selling Price (No points or dots) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                سعر الشراء الأصلي (التكلفة)
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                value={formData.costPrice === 0 ? '' : formData.costPrice}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10) || 0;
+                  setFormData({ ...formData, costPrice: val });
+                }}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 font-mono font-bold text-slate-800 text-base focus:outline-none focus:bg-white focus:border-amber-500 text-left"
+                dir="ltr"
+                placeholder="0"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                سعر البيع *
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                required
+                value={formData.sellingPrice === 0 ? '' : formData.sellingPrice}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10) || 0;
+                  setFormData({ ...formData, sellingPrice: val });
+                }}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 font-mono font-bold text-emerald-600 text-base focus:outline-none focus:bg-white focus:border-amber-500 text-left"
+                dir="ltr"
+                placeholder="0"
+              />
+            </div>
           </div>
 
           {/* Footer Actions */}
