@@ -38,17 +38,32 @@ const TRANSACTION_STORAGE_KEY = 'autostock_transactions_data_v2_ar';
 const SOUND_STORAGE_KEY = 'autostock_sound_pref_v1';
 
 export default function App() {
-  // 1. Core Stock State
-  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  // 1. Core Stock State - Synchronously initialize from LocalStorage to prevent loss on refresh
+  const [stockItems, setStockItems] = useState<StockItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(STOCK_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn('Could not read stock from localStorage:', e);
+    }
+    return [];
+  });
 
-  // 2. Transaction Activity Logs
+  // 2. Transaction Activity Logs - Synchronously initialize from LocalStorage
   const [transactions, setTransactions] = useState<StockTransaction[]>(() => {
     try {
       const saved = localStorage.getItem(TRANSACTION_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
     } catch {
       return [];
     }
+    return [];
   });
 
   // 3. Cashier Cart State
@@ -124,14 +139,23 @@ export default function App() {
             localStorage.setItem(STOCK_STORAGE_KEY, JSON.stringify(mapped));
           } catch {}
         } else if (dbItems !== null && dbItems.length === 0) {
-          setStockItems([]);
+          // If remote DB is empty, check if we have local items to preserve & sync to DB
           try {
-            localStorage.setItem(STOCK_STORAGE_KEY, JSON.stringify([]));
+            const localSaved = localStorage.getItem(STOCK_STORAGE_KEY);
+            if (localSaved) {
+              const parsed = JSON.parse(localSaved);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setStockItems(parsed);
+                parsed.forEach((item: any) => {
+                  saveStockItemToDB(item);
+                });
+              }
+            }
           } catch {}
         }
 
         const dbTx = await fetchTransactionsFromDB();
-        if (dbTx !== null) {
+        if (dbTx !== null && dbTx.length > 0) {
           const mappedTx: StockTransaction[] = dbTx.map((tx: any) => ({
             id: tx.id,
             itemId: tx.item_id || tx.itemId,
@@ -144,12 +168,17 @@ export default function App() {
             timestamp: tx.timestamp || new Date().toISOString(),
             unitPrice: Number(tx.unit_price ?? tx.unitPrice ?? 0),
             totalPrice: Number(tx.total_price ?? tx.totalPrice ?? 0),
+            unitCost: Number(tx.unit_cost ?? tx.unitCost ?? 0),
+            totalCost: Number(tx.total_cost ?? tx.totalCost ?? 0),
             paymentMethod: (tx.payment_method || tx.paymentMethod || 'CASH') as any,
             customerName: tx.customer_name || tx.customerName || undefined,
             note: tx.note || undefined,
             invoiceNumber: tx.invoice_number || tx.invoiceNumber || undefined,
           }));
           setTransactions(mappedTx);
+          try {
+            localStorage.setItem(TRANSACTION_STORAGE_KEY, JSON.stringify(mappedTx));
+          } catch {}
         }
       } catch (err) {
         console.warn('Could not load from Supabase, using local fallback:', err);
@@ -162,9 +191,11 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem(STOCK_STORAGE_KEY, JSON.stringify(stockItems));
-      stockItems.forEach((item) => {
-        saveStockItemToDB(item);
-      });
+      if (stockItems.length > 0) {
+        stockItems.forEach((item) => {
+          saveStockItemToDB(item);
+        });
+      }
     } catch (e) {
       console.error('Failed to persist stock:', e);
     }
@@ -437,18 +468,30 @@ export default function App() {
   const handleSaveItem = (item: StockItem) => {
     setStockItems((prev) => {
       const exists = prev.some((i) => i.id === item.id);
-      if (exists) {
-        return prev.map((i) => (i.id === item.id ? item : i));
+      const next = exists ? prev.map((i) => (i.id === item.id ? item : i)) : [item, ...prev];
+      try {
+        localStorage.setItem(STOCK_STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
       }
-      return [item, ...prev];
+      return next;
     });
 
+    saveStockItemToDB(item);
     showToast('تم حفظ الصنف', `تم حفظ بيانات "${item.name}" بنجاح.`, 'success');
   };
 
   const handleDeleteItem = (itemId: string) => {
     const itemToDelete = stockItems.find((i) => i.id === itemId);
-    setStockItems((prev) => prev.filter((i) => i.id !== itemId));
+    setStockItems((prev) => {
+      const next = prev.filter((i) => i.id !== itemId);
+      try {
+        localStorage.setItem(STOCK_STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
     setCart((prev) => prev.filter((ci) => ci.item.id !== itemId));
     deleteStockItemFromDB(itemId, itemToDelete?.imageUrl);
     showToast('تم حذف الصنف', 'تمت إزالة القطعة نهائياً من المخزون.', 'info');
