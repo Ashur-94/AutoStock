@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { StockItem } from '../types';
 
 interface CashierItemTileProps {
@@ -22,7 +22,7 @@ export const CashierItemTile: React.FC<CashierItemTileProps> = ({
       type="button"
       id={`item-tile-${item.id}`}
       onClick={() => {
-        if (!isInCart && !isOutOfStock) {
+        if (!isOutOfStock) {
           onAddToCart(item);
         }
       }}
@@ -31,22 +31,29 @@ export const CashierItemTile: React.FC<CashierItemTileProps> = ({
         isOutOfStock
           ? 'bg-slate-100/80 border-slate-200 opacity-60 cursor-not-allowed'
           : isInCart
-          ? 'bg-emerald-50/80 border-emerald-400 shadow-sm ring-1 ring-emerald-400/40 cursor-default'
+          ? 'bg-emerald-50/90 border-emerald-500 shadow-sm ring-2 ring-emerald-500/40 cursor-pointer active:scale-[0.98]'
           : 'bg-white border-slate-200 hover:border-amber-400 hover:shadow-md hover:bg-slate-50/50 cursor-pointer active:scale-[0.98]'
       }`}
     >
       {/* Top row: Item Name */}
       <div className="w-full">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-bold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug group-hover:text-amber-600 transition-colors">
+          <h3 className={`font-bold text-xs sm:text-sm line-clamp-2 leading-snug transition-colors ${
+            isInCart ? 'text-emerald-950 font-black' : 'text-slate-900 group-hover:text-amber-600'
+          }`}>
             {item.name}
           </h3>
 
           {/* Cart Status Badge */}
           {isInCart && (
-            <span className="shrink-0 px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold text-[11px] flex items-center gap-1 shadow-xs">
-              <Check className="w-3 h-3 stroke-[3]" />
-              <span>بالسلة ({cartQuantity})</span>
+            <span 
+              className="shrink-0 px-2 py-0.5 rounded-full bg-emerald-600 group-hover:bg-rose-600 text-white font-bold text-[11px] flex items-center gap-1 shadow-xs transition-colors"
+              title="انقر مرة أخرى لإلغاء التحديد"
+            >
+              <Check className="w-3 h-3 stroke-[3] group-hover:hidden" />
+              <X className="w-3 h-3 stroke-[3] hidden group-hover:block" />
+              <span className="group-hover:hidden">محدد ({cartQuantity})</span>
+              <span className="hidden group-hover:inline">إلغاء</span>
             </span>
           )}
         </div>
@@ -59,9 +66,13 @@ export const CashierItemTile: React.FC<CashierItemTileProps> = ({
             {Math.round(item.sellingPrice)}
           </span>
         </div>
-        {isInCart && (
+        {isInCart ? (
+          <span className="text-[10px] text-emerald-700 font-bold group-hover:text-rose-600 transition-colors">
+            انقر لإلغاء التحديد
+          </span>
+        ) : (
           <span className="text-[10px] text-slate-400 font-medium">
-            عدل الكمية من السلة
+            انقر للتحديد
           </span>
         )}
       </div>

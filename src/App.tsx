@@ -242,15 +242,16 @@ export default function App() {
   // CASHIER CART ACTIONS
   // ----------------------------------------------------
 
-  // Add Item to Cart (Tap on Item in the Grid - Single Click to Add)
+  // Toggle Item in Cart (Tap to select / add, tap again to unselect / remove)
   const handleAddToCart = (item: StockItem) => {
     setLastReceipt(null); // Dismiss previous receipt if any
     setCart((prev) => {
       const existingIndex = prev.findIndex((ci) => ci.item.id === item.id);
       if (existingIndex >= 0) {
-        // User can only click once from catalog; quantity increases happen in the cart
-        return prev;
+        // Tap again to unselect / remove from cart
+        return prev.filter((ci) => ci.item.id !== item.id);
       }
+      playRestockSound();
       return [
         ...prev,
         {
@@ -261,8 +262,6 @@ export default function App() {
         },
       ];
     });
-
-    playRestockSound();
   };
 
   // Update Item Quantity in Cart
