@@ -235,43 +235,59 @@ export async function fetchStockItemsFromDB(): Promise<any[] | null> {
 export async function saveStockItemToDB(item: any): Promise<void> {
   try {
     const supabase = getSupabaseClient();
-    const payload = {
+    
+    const basePayload = {
       id: item.id,
-      part_number: item.partNumber,
+      part_number: item.partNumber || item.part_number || '',
       name: item.name,
-      category: item.category,
-      image_url: item.imageUrl || null,
-      quantity: item.quantity,
-      min_stock_threshold: item.minStockThreshold,
-      unit: item.unit,
-      cost_price: item.costPrice,
-      selling_price: item.sellingPrice,
-      location: item.location,
-      supplier: item.supplier,
-      last_updated: item.lastUpdated || new Date().toISOString(),
+      image_url: item.imageUrl || item.image_url || null,
+      quantity: Number(item.quantity || 0),
+      min_stock_threshold: Number(item.minStockThreshold ?? item.min_stock_threshold ?? 5),
+      unit: item.unit || 'قطعة',
+      cost_price: Number(item.costPrice ?? item.cost_price ?? 0),
+      selling_price: Number(item.sellingPrice ?? item.selling_price ?? 0),
+      location: item.location || '',
+      supplier: item.supplier || '',
+      last_updated: item.lastUpdated || item.last_updated || new Date().toISOString(),
       notes: item.notes || null,
     };
     
-    // Save to stock_items
-    const { error: stockErr } = await supabase.from('stock_items').upsert(payload);
-    if (stockErr) {
-      // Also try inventory_items schema format
-      await supabase.from('inventory_items').upsert({
-        id: item.id,
-        part_number: item.partNumber,
-        name: item.name,
-        category_id: item.category,
-        image_url: item.imageUrl || null,
-        quantity: item.quantity,
-        min_stock_threshold: item.minStockThreshold,
-        unit: item.unit,
-        cost_price: item.costPrice,
-        selling_price: item.sellingPrice,
-        location: item.location,
-        supplier_name: item.supplier,
-        notes: item.notes || null,
-      });
-    }
+    // Attempt 1: Try with category_id (SQL standard)
+    const { error: err1 } = await supabase.from('stock_items').upsert({
+      ...basePayload,
+      category_id: item.category,
+    });
+
+    if (!err1) return;
+
+    // Attempt 2: Try with category column
+    const { error: err2 } = await supabase.from('stock_items').upsert({
+      ...basePayload,
+      category: item.category,
+    });
+
+    if (!err2) return;
+
+    // Attempt 3: Try both category_id and category
+    const { error: err3 } = await supabase.from('stock_items').upsert({
+      ...basePayload,
+      category_id: item.category,
+      category: item.category,
+    });
+
+    if (!err3) return;
+
+    // Attempt 4: Try base payload without category
+    const { error: err4 } = await supabase.from('stock_items').upsert(basePayload);
+
+    if (!err4) return;
+
+    // Fallback: Try inventory_items schema format
+    await supabase.from('inventory_items').upsert({
+      ...basePayload,
+      category_id: item.category,
+      supplier_name: item.supplier,
+    });
   } catch (err) {
     console.warn('Supabase DB save item error:', err);
   }
@@ -334,6 +350,8 @@ export async function saveTransactionToDB(tx: any): Promise<void> {
       quantity_delta: tx.quantityDelta ?? tx.quantity_delta,
       previous_quantity: tx.previousQuantity ?? tx.previous_quantity,
       new_quantity: tx.newQuantity ?? tx.new_quantity,
+      unit_cost: tx.unitCost ?? tx.unit_cost ?? 0,
+      total_cost: tx.totalCost ?? tx.total_cost ?? 0,
       unit_price: tx.unitPrice ?? tx.unit_price ?? 0,
       total_price: tx.totalPrice ?? tx.total_price ?? 0,
       payment_method: tx.paymentMethod || tx.payment_method || 'CASH',
