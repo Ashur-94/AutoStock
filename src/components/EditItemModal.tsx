@@ -15,6 +15,7 @@ interface EditItemModalProps {
   isOpen: boolean;
   onClose: () => void;
   itemToEdit: StockItem | null; // null means adding a new item
+  defaultCategory?: string;
   onSave: (item: StockItem) => void;
   onDelete?: (itemId: string) => void;
   categories?: string[];
@@ -25,6 +26,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
   isOpen,
   onClose,
   itemToEdit,
+  defaultCategory,
   onSave,
   onDelete,
   categories = [],
@@ -67,7 +69,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
       setFormData({
         name: '',
         partNumber: '',
-        category: categories.length > 0 ? categories[0] : '',
+        category: defaultCategory || (categories.length > 0 ? categories[0] : ''),
         quantity: 10,
         minStockThreshold: 5,
         unit: 'قطعة',
@@ -81,7 +83,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
     setShowDeleteConfirm(false);
     setIsAddingNewCat(false);
     setNewCatInput('');
-  }, [itemToEdit, isOpen]);
+  }, [itemToEdit, isOpen, defaultCategory]);
 
   if (!isOpen) return null;
 

@@ -19,6 +19,7 @@ import { AdminPanelModal } from './components/AdminPanelModal';
 import { EditItemModal } from './components/EditItemModal';
 import { InvoiceUploadModal } from './components/InvoiceUploadModal';
 import { PosModal } from './components/PosModal';
+import { CategoryItemsPickerModal } from './components/CategoryItemsPickerModal';
 import { 
   playSaleSound, 
   playRestockSound, 
@@ -142,8 +143,11 @@ export default function App() {
   const [isSalesCalendarOpen, setIsSalesCalendarOpen] = useState(false);
   const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<StockItem | null>(null);
+  const [defaultCategoryForNewItem, setDefaultCategoryForNewItem] = useState<string>('');
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
+  const [categoryForPicker, setCategoryForPicker] = useState<string>('');
 
   // 6. Toast Notification State
   const [toast, setToast] = useState<{ title: string; desc: string; type: 'success' | 'alert' | 'info' } | null>(null);
@@ -423,6 +427,36 @@ export default function App() {
 
     setSelectedCategory('ALL');
     showToast('تم تنظيف التصنيفات', 'تم حذف وتصفير كافة التصنيفات الوهمية بنجاح.', 'success');
+  };
+
+  const handleOpenCategoryItemsPicker = (catName: string) => {
+    setCategoryForPicker(catName);
+    setIsCategoryPickerOpen(true);
+  };
+
+  const handleAssignItemsToCategory = (catName: string, itemIds: string[]) => {
+    const trimmedCat = catName.trim();
+    const idSet = new Set(itemIds);
+
+    setStockItems((prev) =>
+      prev.map((item) => {
+        const isCurrentInCat = (item.category || '').trim().toLowerCase() === trimmedCat.toLowerCase();
+        const shouldBeInCat = idSet.has(item.id);
+
+        if (shouldBeInCat && !isCurrentInCat) {
+          const updated = { ...item, category: trimmedCat, lastUpdated: new Date().toISOString() };
+          saveStockItemToDB(updated);
+          return updated;
+        } else if (!shouldBeInCat && isCurrentInCat) {
+          const updated = { ...item, category: '', lastUpdated: new Date().toISOString() };
+          saveStockItemToDB(updated);
+          return updated;
+        }
+        return item;
+      })
+    );
+
+    showToast('تم تعيين القطع للتصنيف', `تم تحديث ${itemIds.length} قطعة تابعة لتصنيف "${trimmedCat}".`, 'success');
   };
 
   // Filtered Stock Items for the Grid (Filter by search query AND active category)
@@ -894,6 +928,7 @@ export default function App() {
             onSelectCategory={setSelectedCategory}
             onAddCategory={handleAddCategory}
             onDeleteCategory={handleDeleteCategory}
+            onManageCategoryItems={handleOpenCategoryItemsPicker}
             stockItems={stockItems}
           />
 
@@ -912,7 +947,7 @@ export default function App() {
                 {searchQuery
                   ? 'جرب البحث بكلمات أخرى أو مسح حقل البحث.'
                   : selectedCategory !== 'ALL'
-                  ? 'يمكنك إضافة صنف جديد لهذا التصنيف أو اختيار تصنيف آخر.'
+                  ? 'يمكنك إضافة وتعيين قطع من المخزون لهذا التصنيف أو إضافة قطعة جديدة.'
                   : 'يمكنك إضافة أصناف جديدة أو مسح فواتير التوريد من لوحة الإدارة.'}
               </p>
               <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
@@ -925,22 +960,34 @@ export default function App() {
                   </button>
                 )}
                 {selectedCategory !== 'ALL' && (
+                  <>
+                    <button
+                      onClick={() => handleOpenCategoryItemsPicker(selectedCategory)}
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold cursor-pointer shadow-sm flex items-center gap-1.5"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>إضافة وتعيين قطع لتصنيف "{selectedCategory}"</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedCategory('ALL')}
+                      className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                    >
+                      عرض كل التصنيفات
+                    </button>
+                  </>
+                )}
+                {selectedCategory === 'ALL' && (
                   <button
-                    onClick={() => setSelectedCategory('ALL')}
-                    className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                    onClick={() => {
+                      setItemToEdit(null);
+                      setDefaultCategoryForNewItem('');
+                      setIsEditItemModalOpen(true);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold cursor-pointer shadow-sm"
                   >
-                    عرض كل التصنيفات
+                    إضافة صنف جديد
                   </button>
                 )}
-                <button
-                  onClick={() => {
-                    setItemToEdit(null);
-                    setIsEditItemModalOpen(true);
-                  }}
-                  className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold cursor-pointer shadow-sm"
-                >
-                  إضافة صنف جديد
-                </button>
               </div>
             </div>
           ) : (
@@ -1019,8 +1066,10 @@ export default function App() {
         onRenameCategory={handleRenameCategory}
         onDeleteCategory={handleDeleteCategory}
         onCleanMockCategories={handleCleanMockCategories}
+        onManageCategoryItems={handleOpenCategoryItemsPicker}
         onOpenAddItem={(item) => {
           setItemToEdit(item || null);
+          setDefaultCategoryForNewItem('');
           setIsEditItemModalOpen(true);
         }}
         onOpenInvoiceUpload={() => setIsInvoiceModalOpen(true)}
@@ -1052,15 +1101,31 @@ export default function App() {
         onClose={() => {
           setIsEditItemModalOpen(false);
           setItemToEdit(null);
+          setDefaultCategoryForNewItem('');
         }}
         itemToEdit={itemToEdit}
+        defaultCategory={defaultCategoryForNewItem}
         onSave={handleSaveItem}
         onDelete={handleDeleteItem}
         categories={categories}
         onAddCategory={handleAddCategory}
       />
 
-      {/* 6. AI Invoice Scanner Modal */}
+      {/* 6. Category Items Picker / Assignment Modal */}
+      <CategoryItemsPickerModal
+        isOpen={isCategoryPickerOpen}
+        onClose={() => setIsCategoryPickerOpen(false)}
+        categoryName={categoryForPicker}
+        stockItems={stockItems}
+        onAssignItemsToCategory={handleAssignItemsToCategory}
+        onOpenCreateNewItemForCategory={(cat) => {
+          setItemToEdit(null);
+          setDefaultCategoryForNewItem(cat);
+          setIsEditItemModalOpen(true);
+        }}
+      />
+
+      {/* 7. AI Invoice Scanner Modal */}
       <InvoiceUploadModal
         isOpen={isInvoiceModalOpen}
         onClose={() => setIsInvoiceModalOpen(false)}
@@ -1068,7 +1133,7 @@ export default function App() {
         onApplyInvoiceItems={handleApplyInvoiceItems}
       />
 
-      {/* 7. Reset Database Confirmation */}
+      {/* 8. Reset Database Confirmation */}
       {isResetConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in" dir="rtl">
           <div className="bg-white border border-slate-200 rounded-3xl p-5 max-w-sm w-full shadow-2xl text-right">

@@ -32,7 +32,9 @@ import {
   Check,
   CheckCircle2,
   FolderPlus,
-  Eraser
+  Eraser,
+  Boxes,
+  PackageCheck
 } from 'lucide-react';
 import { StockItem, StockTransaction, ParsedInvoiceResult } from '../types';
 
@@ -46,6 +48,7 @@ interface AdminPanelModalProps {
   onRenameCategory?: (oldName: string, newName: string) => void;
   onDeleteCategory?: (category: string) => void;
   onCleanMockCategories?: () => void;
+  onManageCategoryItems?: (category: string) => void;
   onOpenAddItem: (itemToEdit?: StockItem | null) => void;
   onOpenInvoiceUpload?: () => void;
   onOpenSalesCalendar?: () => void;
@@ -70,6 +73,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   onRenameCategory,
   onDeleteCategory,
   onCleanMockCategories,
+  onManageCategoryItems,
   onOpenAddItem,
   onOpenInvoiceUpload,
   onOpenSalesCalendar,
@@ -659,7 +663,19 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
                           {/* Action Buttons */}
                           {!isEditing && (
-                            <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                              {onManageCategoryItems && (
+                                <button
+                                  type="button"
+                                  onClick={() => onManageCategoryItems(cat)}
+                                  className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                  title="تحديد وإضافة قطع غيار لهذا التصنيف"
+                                >
+                                  <PackageCheck className="w-3.5 h-3.5 text-amber-700" />
+                                  <span>إضافة قطع للتصنيف</span>
+                                </button>
+                              )}
+
                               <button
                                 type="button"
                                 onClick={() => {

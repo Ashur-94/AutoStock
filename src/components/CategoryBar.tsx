@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, Tag, X, Layers, Check } from 'lucide-react';
+import { Plus, Tag, X, Layers, Check, PackageCheck } from 'lucide-react';
 import { StockItem } from '../types';
 
 interface CategoryBarProps {
@@ -8,6 +8,7 @@ interface CategoryBarProps {
   onSelectCategory: (category: string) => void;
   onAddCategory: (newCategory: string) => void;
   onDeleteCategory?: (category: string) => void;
+  onManageCategoryItems?: (category: string) => void;
   stockItems: StockItem[];
 }
 
@@ -17,6 +18,7 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
   onSelectCategory,
   onAddCategory,
   onDeleteCategory,
+  onManageCategoryItems,
   stockItems,
 }) => {
   const [isAdding, setIsAdding] = useState(false);
@@ -115,6 +117,21 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
                   {count}
                 </span>
               </button>
+
+              {/* Manage Category Items Icon */}
+              {onManageCategoryItems && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onManageCategoryItems(cat);
+                  }}
+                  className="hidden group-hover:flex absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-slate-950 items-center justify-center text-[10px] shadow-xs hover:bg-amber-400 cursor-pointer transition-transform hover:scale-110 font-bold"
+                  title={`إضافة وتعيين قطع لتصنيف "${cat}"`}
+                >
+                  <Plus className="w-2.5 h-2.5 stroke-[3]" />
+                </button>
+              )}
 
               {/* Delete Category Icon */}
               {onDeleteCategory && (

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Edit2, Trash2, Check, Settings, Tag, AlertCircle } from 'lucide-react';
+import { X, Plus, Edit2, Trash2, Check, Settings, Tag, AlertCircle, PackageCheck } from 'lucide-react';
 
 interface CategoriesModalProps {
   isOpen: boolean;
@@ -8,6 +8,7 @@ interface CategoriesModalProps {
   onAddCategory: (newCategory: string) => void;
   onRenameCategory: (oldCategory: string, newCategory: string) => void;
   onDeleteCategory: (categoryToDelete: string) => void;
+  onManageCategoryItems?: (category: string) => void;
 }
 
 export const CategoriesModal: React.FC<CategoriesModalProps> = ({
@@ -17,6 +18,7 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
   onAddCategory,
   onRenameCategory,
   onDeleteCategory,
+  onManageCategoryItems,
 }) => {
   const [newCatName, setNewCatName] = useState('');
   const [editingCat, setEditingCat] = useState<string | null>(null);
@@ -142,6 +144,21 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
+                    {onManageCategoryItems && !editingCat && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onManageCategoryItems(cat);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                        title="إضافة وتعيين قطع لهذا القسم"
+                      >
+                        <PackageCheck className="w-3.5 h-3.5 text-amber-700" />
+                        <span className="hidden sm:inline">إضافة قطع</span>
+                      </button>
+                    )}
+
                     {editingCat === cat ? (
                       <button
                         type="button"
