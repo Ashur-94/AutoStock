@@ -180,7 +180,7 @@ export async function fetchStockItemsFromDB(): Promise<any[] | null> {
         id: item.id || `item_${item.part_number || Date.now()}`,
         part_number: item.part_number || item.partNumber || item.sku || '',
         name: item.name || item.item_name || 'قطعة بدون اسم',
-        category: item.category || item.category_id || 'زيوت وسوائل',
+        category: item.category || item.category_id || '',
         image_url: item.image_url || item.imageUrl || null,
         quantity: typeof item.quantity === 'number' ? item.quantity : Number(item.quantity || 0),
         min_stock_threshold: typeof item.min_stock_threshold === 'number' ? item.min_stock_threshold : Number(item.min_stock_threshold || 5),
@@ -206,7 +206,7 @@ export async function fetchStockItemsFromDB(): Promise<any[] | null> {
         id: item.id || `item_${item.part_number || Date.now()}`,
         part_number: item.part_number || item.partNumber || item.sku || '',
         name: item.name || item.item_name || 'قطعة بدون اسم',
-        category: item.category || item.category_id || 'زيوت وسوائل',
+        category: item.category || item.category_id || '',
         image_url: item.image_url || item.imageUrl || null,
         quantity: typeof item.quantity === 'number' ? item.quantity : Number(item.quantity || 0),
         min_stock_threshold: typeof item.min_stock_threshold === 'number' ? item.min_stock_threshold : Number(item.min_stock_threshold || 5),
@@ -381,5 +381,45 @@ export async function clearAllTransactionsFromDB(): Promise<void> {
     await supabase.from('stock_transactions').delete().neq('id', '___NEVER_MATCH___');
   } catch (err) {
     console.warn('Supabase DB clear all tx error:', err);
+  }
+}
+
+/**
+ * Custom Categories Cloud Sync Helpers
+ */
+export async function fetchCategoriesFromDB(): Promise<string[] | null> {
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('stock_categories')
+      .select('name')
+      .order('created_at', { ascending: true });
+
+    if (!error && data) {
+      return data.map((d: any) => d.name).filter(Boolean);
+    }
+    return null;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function saveCategoryToDB(name: string): Promise<void> {
+  try {
+    const supabase = getSupabaseClient();
+    await supabase.from('stock_categories').upsert({
+      name: name.trim(),
+    }, { onConflict: 'name' });
+  } catch (err) {
+    console.warn('Supabase save category error:', err);
+  }
+}
+
+export async function deleteCategoryFromDB(name: string): Promise<void> {
+  try {
+    const supabase = getSupabaseClient();
+    await supabase.from('stock_categories').delete().eq('name', name.trim());
+  } catch (err) {
+    console.warn('Supabase delete category error:', err);
   }
 }

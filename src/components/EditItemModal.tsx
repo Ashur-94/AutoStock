@@ -27,13 +27,13 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
   itemToEdit,
   onSave,
   onDelete,
-  categories = ['عام'],
+  categories = [],
   onAddCategory,
 }) => {
   const [formData, setFormData] = useState<Partial<StockItem>>({
     name: '',
     partNumber: '',
-    category: 'عام',
+    category: '',
     quantity: 1,
     minStockThreshold: 5,
     unit: 'قطعة',
@@ -177,14 +177,14 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                 <span>تصنيف الصنف</span>
               </label>
               <span className="text-[11px] text-slate-400 font-mono">
-                المحدد: <strong className="text-slate-800">{formData.category || 'عام'}</strong>
+                المحدد: <strong className="text-slate-800">{formData.category || 'بدون تصنيف'}</strong>
               </span>
             </div>
 
             {/* Category Chips */}
             <div className="flex flex-wrap items-center gap-1.5 pt-1">
               {categories.map((cat) => {
-                const isSelected = (formData.category || 'عام') === cat;
+                const isSelected = (formData.category || '') === cat;
                 return (
                   <button
                     key={cat}
@@ -200,6 +200,15 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                   </button>
                 );
               })}
+
+              {formData.category && !categories.includes(formData.category) && (
+                <button
+                  type="button"
+                  className="px-3 py-1 rounded-xl text-xs font-black bg-amber-500 text-slate-950 shadow-xs ring-1 ring-amber-500"
+                >
+                  {formData.category}
+                </button>
+              )}
 
               {/* Inline Add New Category inside Modal */}
               {isAddingNewCat ? (

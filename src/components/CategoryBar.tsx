@@ -87,7 +87,7 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
         {/* 2. Custom Categories */}
         {categories.map((cat) => {
           const count = stockItems.filter(
-            (item) => (item.category || 'عام').trim().toLowerCase() === cat.trim().toLowerCase()
+            (item) => (item.category || '').trim().toLowerCase() === cat.trim().toLowerCase()
           ).length;
           const isSelected = selectedCategory === cat;
 

@@ -32,14 +32,16 @@ import {
   deleteAllStockItemsFromDB,
   fetchTransactionsFromDB,
   saveTransactionToDB,
-  deleteStockTransactionFromDB
+  deleteStockTransactionFromDB,
+  fetchCategoriesFromDB,
+  saveCategoryToDB,
+  deleteCategoryFromDB
 } from './utils/supabaseStorage';
 
 const STOCK_STORAGE_KEY = 'autostock_inventory_data_v3_ar';
 const TRANSACTION_STORAGE_KEY = 'autostock_transactions_data_v2_ar';
 const SOUND_STORAGE_KEY = 'autostock_sound_pref_v1';
 const CATEGORIES_STORAGE_KEY = 'autostock_categories_v2_ar';
-const DEFAULT_CATEGORIES = ['عام', 'فلاتر', 'زيوت وسوائل', 'فرامل', 'كهربائيات'];
 
 export default function App() {
   // 1. Core Stock State - Synchronously initialize from LocalStorage to prevent loss on refresh
@@ -56,16 +58,16 @@ export default function App() {
     return [];
   });
 
-  // 1.1 Categories State
+  // 1.1 Categories State - Clean array without hardcoded dummy categories
   const [categories, setCategories] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem(CATEGORIES_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {}
-    return DEFAULT_CATEGORIES;
+    return [];
   });
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
@@ -134,7 +136,7 @@ export default function App() {
             id: item.id,
             partNumber: item.part_number,
             name: item.name,
-            category: item.category || 'عام',
+            category: item.category || '',
             imageUrl: item.image_url || '',
             quantity: item.quantity,
             minStockThreshold: item.min_stock_threshold || 3,
@@ -169,6 +171,18 @@ export default function App() {
               }
             }
           } catch {}
+        }
+
+        // Fetch categories from DB
+        const dbCategories = await fetchCategoriesFromDB();
+        if (dbCategories !== null && dbCategories.length > 0) {
+          setCategories((prev) => {
+            const combined = Array.from(new Set([...prev, ...dbCategories]));
+            try {
+              localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(combined));
+            } catch {}
+            return combined;
+          });
         }
 
         const dbTx = await fetchTransactionsFromDB();
@@ -245,7 +259,7 @@ export default function App() {
         const set = new Set(prev);
         let changed = false;
         stockItems.forEach((it) => {
-          const cat = (it.category || 'عام').trim();
+          const cat = (it.category || '').trim();
           if (cat && !set.has(cat)) {
             set.add(cat);
             changed = true;
@@ -274,6 +288,8 @@ export default function App() {
       } catch {}
       return next;
     });
+    // Cloud sync
+    saveCategoryToDB(trimmed);
     setSelectedCategory(trimmed);
     showToast('تمت إضافة التصنيف', `تم إنشاء تصنيف "${trimmed}" بنجاح.`, 'success');
   };
@@ -286,6 +302,8 @@ export default function App() {
       } catch {}
       return next;
     });
+    // Cloud delete
+    deleteCategoryFromDB(catToDelete);
     setStockItems((prev) =>
       prev.map((item) =>
         (item.category || '') === catToDelete ? { ...item, category: '' } : item
@@ -311,7 +329,7 @@ export default function App() {
         (item.supplier && item.supplier.toLowerCase().includes(q));
 
       // 2. Category Filter (All vs Specific Category)
-      const itemCat = (item.category || 'عام').trim().toLowerCase();
+      const itemCat = (item.category || '').trim().toLowerCase();
       const matchesCategory =
         selectedCategory === 'ALL' ||
         itemCat === selectedCategory.trim().toLowerCase();

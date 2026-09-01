@@ -44,7 +44,7 @@ export const CashierItemTile: React.FC<CashierItemTileProps> = ({
             }`}>
               {item.name}
             </h3>
-            {item.category && item.category !== 'عام' && (
+            {item.category && item.category.trim() !== '' && (
               <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded-md bg-amber-50 text-amber-800 border border-amber-200/60 text-[9.5px] font-bold">
                 {item.category}
               </span>
