@@ -132,15 +132,35 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Pricing - Selling Price Only (No points or dots) */}
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-right flex items-center justify-between">
-            <div>
-              <span className="text-xs text-slate-500 font-semibold block mb-0.5">سعر البيع</span>
-              <span className="text-[11px] text-slate-400">السعر المعتمد في الفواتير</span>
+          {/* Pricing & Cost Breakdown */}
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-right space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs text-slate-500 font-semibold block mb-0.5">سعر البيع</span>
+                <span className="text-[11px] text-slate-400">السعر المعتمد في الفواتير</span>
+              </div>
+              <span className="font-mono text-2xl font-black text-emerald-600">
+                {Math.round(item.sellingPrice)}
+              </span>
             </div>
-            <span className="font-mono text-2xl font-black text-emerald-600">
-              {Math.round(item.sellingPrice)}
-            </span>
+
+            <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
+              <div>
+                <span className="text-slate-600 font-bold block">سعر التكلفة للقطعة</span>
+                <span className="text-[11px] text-slate-400 font-mono">
+                  {Math.round(item.costPrice || 0)}
+                </span>
+              </div>
+              <div className="text-left font-mono">
+                <span className="text-slate-600 font-bold block">إجمالي التكلفة بالمخزن</span>
+                <span className="text-sm font-black text-slate-900">
+                  {Math.round((item.costPrice || 0) * item.quantity)}
+                  <span className="text-[10px] text-slate-400 font-normal mr-1">
+                    ({item.quantity} × {Math.round(item.costPrice || 0)})
+                  </span>
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Quantity Management Box */}

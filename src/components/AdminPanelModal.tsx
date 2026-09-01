@@ -42,6 +42,7 @@ interface AdminPanelModalProps {
   onIncrementStock: (item: StockItem, delta?: number) => void;
   onDecrementStock: (item: StockItem, delta?: number) => void;
   onDeleteItem: (itemId: string) => void;
+  onDeleteTransaction?: (transactionId: string) => void;
   onResetData: () => void;
   soundEnabled: boolean;
   onToggleSound: () => void;
@@ -60,6 +61,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   onIncrementStock,
   onDecrementStock,
   onDeleteItem,
+  onDeleteTransaction,
   onResetData,
   soundEnabled,
   onToggleSound,
@@ -234,7 +236,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       <tr>
                         <th className="p-3">اسم القطعة</th>
                         <th className="p-3">الكمية بالمخزن</th>
-                        <th className="p-3">سعر التكلفة</th>
+                        <th className="p-3">سعر التكلفة للقطعة</th>
+                        <th className="p-3">إجمالي التكلفة</th>
                         <th className="p-3">سعر البيع</th>
                         <th className="p-3 text-center">إجراءات</th>
                       </tr>
@@ -242,13 +245,14 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     <tbody className="divide-y divide-slate-100">
                       {filteredStock.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="p-8 text-center text-slate-400">
+                          <td colSpan={6} className="p-8 text-center text-slate-400">
                             لا توجد قطع مطابقة للبحث
                           </td>
                         </tr>
                       ) : (
                         filteredStock.map((item) => {
                           const isLow = item.quantity <= item.minStockThreshold;
+                          const totalCost = (item.costPrice || 0) * item.quantity;
                           return (
                             <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
                               <td className="p-3 font-bold text-slate-900">
@@ -283,6 +287,12 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                               </td>
                               <td className="p-3 font-mono text-slate-600">
                                 {Math.round(item.costPrice)}
+                              </td>
+                              <td className="p-3 font-mono font-bold text-slate-800">
+                                {Math.round(totalCost)}
+                                <span className="text-[10px] text-slate-400 font-normal block">
+                                  ({item.quantity} × {Math.round(item.costPrice || 0)})
+                                </span>
                               </td>
                               <td className="p-3 font-mono font-bold text-emerald-600">
                                 {Math.round(item.sellingPrice)}
@@ -395,31 +405,48 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                           </div>
                         </div>
 
-                        <div className="text-left font-mono shrink-0 flex sm:flex-col items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
-                          {isSale ? (
-                            <>
-                              <div className="text-sm font-bold text-emerald-600">
-                                +{Math.round(saleTotal)}
-                              </div>
-                              <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
-                                <span>التكلفة: <strong className="text-slate-700 font-bold">{Math.round(totalCost)}</strong></span>
-                                <span>•</span>
-                                <span className={profit >= 0 ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}>
-                                  الربح: {profit >= 0 ? `+${Math.round(profit)}` : Math.round(profit)}
-                                </span>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="text-sm font-bold text-blue-600">
-                                +{tx.quantityDelta} قطعة
-                              </div>
-                              {totalCost > 0 && (
-                                <div className="text-[11px] text-slate-500 mt-0.5">
-                                  تكلفة التوريد: <strong className="text-slate-700 font-bold">{Math.round(totalCost)}</strong>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="text-left font-mono shrink-0 flex sm:flex-col items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
+                            {isSale ? (
+                              <>
+                                <div className="text-sm font-bold text-emerald-600">
+                                  +{Math.round(saleTotal)}
                                 </div>
-                              )}
-                            </>
+                                <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
+                                  <span>التكلفة: <strong className="text-slate-700 font-bold">{Math.round(totalCost)}</strong></span>
+                                  <span>•</span>
+                                  <span className={profit >= 0 ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}>
+                                    الربح: {profit >= 0 ? `+${Math.round(profit)}` : Math.round(profit)}
+                                  </span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="text-sm font-bold text-blue-600">
+                                  +{tx.quantityDelta} قطعة
+                                </div>
+                                {totalCost > 0 && (
+                                  <div className="text-[11px] text-slate-500 mt-0.5">
+                                    تكلفة التوريد: <strong className="text-slate-700 font-bold">{Math.round(totalCost)}</strong>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+
+                          {onDeleteTransaction && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`هل أنت متأكد من حذف هذه العملية (${tx.itemName}) من السجل؟`)) {
+                                  onDeleteTransaction(tx.id);
+                                }
+                              }}
+                              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                              title="حذف هذه العملية بشكل فردي من السجل"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           )}
                         </div>
                       </div>

@@ -135,12 +135,22 @@ export const StockCard: React.FC<StockCardProps> = ({
           </h3>
         </div>
 
-        {/* Pricing Details - Selling Price Only (No points or dots) */}
-        <div className="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 border border-slate-200">
-          <span className="text-xs text-slate-600 font-bold">سعر البيع:</span>
-          <span className="font-mono font-black text-base sm:text-lg text-emerald-600">
-            {Math.round(item.sellingPrice)}
-          </span>
+        {/* Pricing & Cost Details */}
+        <div className="space-y-1.5 bg-slate-50 rounded-xl p-2.5 border border-slate-200">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-600 font-bold">سعر البيع:</span>
+            <span className="font-mono font-black text-base sm:text-lg text-emerald-600">
+              {Math.round(item.sellingPrice)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-200/80 text-slate-500 font-mono">
+            <span className="text-slate-600 font-medium">
+              إجمالي التكلفة ({item.quantity} × {Math.round(item.costPrice || 0)}):
+            </span>
+            <span className="font-bold text-slate-800">
+              {Math.round((item.costPrice || 0) * item.quantity)}
+            </span>
+          </div>
         </div>
 
         {/* Action Controls: Sell Item POS Button & Stepper */}

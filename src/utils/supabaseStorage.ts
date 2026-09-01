@@ -365,3 +365,21 @@ export async function saveTransactionToDB(tx: any): Promise<void> {
     console.warn('Supabase DB save tx error:', err);
   }
 }
+
+export async function deleteStockTransactionFromDB(txId: string): Promise<void> {
+  try {
+    const supabase = getSupabaseClient();
+    await supabase.from('stock_transactions').delete().eq('id', txId);
+  } catch (err) {
+    console.warn('Supabase DB delete tx error:', err);
+  }
+}
+
+export async function clearAllTransactionsFromDB(): Promise<void> {
+  try {
+    const supabase = getSupabaseClient();
+    await supabase.from('stock_transactions').delete().neq('id', '___NEVER_MATCH___');
+  } catch (err) {
+    console.warn('Supabase DB clear all tx error:', err);
+  }
+}

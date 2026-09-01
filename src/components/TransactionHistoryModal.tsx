@@ -13,6 +13,7 @@ interface TransactionHistoryModalProps {
   onClose: () => void;
   transactions: StockTransaction[];
   onClearHistory: () => void;
+  onDeleteTransaction?: (transactionId: string) => void;
 }
 
 export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({
@@ -20,6 +21,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
   onClose,
   transactions,
   onClearHistory,
+  onDeleteTransaction,
 }) => {
   const [filterType, setFilterType] = useState<string>('ALL');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -199,27 +201,44 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
                     </div>
                   </div>
 
-                  <div className="text-left shrink-0 font-mono" dir="ltr">
-                    <div
-                      className={`font-bold text-sm ${
-                        t.quantityDelta > 0 ? 'text-emerald-600' : 'text-rose-600'
-                      }`}
-                    >
-                      {t.quantityDelta > 0 ? `+${t.quantityDelta}` : t.quantityDelta}
-                    </div>
-                    {isSale && (t.totalPrice || t.unitPrice) && (
-                      <div className="text-[10px] text-slate-600 mt-0.5 font-bold">
-                        {Math.round(t.totalPrice || (t.unitPrice ? t.unitPrice * Math.abs(t.quantityDelta) : 0))}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="text-left shrink-0 font-mono" dir="ltr">
+                      <div
+                        className={`font-bold text-sm ${
+                          t.quantityDelta > 0 ? 'text-emerald-600' : 'text-rose-600'
+                        }`}
+                      >
+                        {t.quantityDelta > 0 ? `+${t.quantityDelta}` : t.quantityDelta}
                       </div>
-                    )}
-                    {typeof t.totalCost === 'number' && t.totalCost > 0 && (
-                      <div className="text-[9px] text-slate-400">
-                        التكلفة: {Math.round(t.totalCost)}
+                      {isSale && (t.totalPrice || t.unitPrice) && (
+                        <div className="text-[10px] text-slate-600 mt-0.5 font-bold">
+                          {Math.round(t.totalPrice || (t.unitPrice ? t.unitPrice * Math.abs(t.quantityDelta) : 0))}
+                        </div>
+                      )}
+                      {typeof t.totalCost === 'number' && t.totalCost > 0 && (
+                        <div className="text-[9px] text-slate-400">
+                          التكلفة: {Math.round(t.totalCost)}
+                        </div>
+                      )}
+                      <div className="text-[10px] text-slate-400 mt-0.5">
+                        {new Date(t.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                       </div>
-                    )}
-                    <div className="text-[10px] text-slate-400 mt-0.5">
-                      {new Date(t.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                     </div>
+
+                    {onDeleteTransaction && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm(`هل أنت متأكد من حذف هذه الحركة (${t.itemName}) من السجل؟`)) {
+                            onDeleteTransaction(t.id);
+                          }
+                        }}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="حذف الحركة بشكل فردي من السجل"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );

@@ -30,7 +30,8 @@ import {
   deleteStockItemFromDB,
   deleteAllStockItemsFromDB,
   fetchTransactionsFromDB,
-  saveTransactionToDB
+  saveTransactionToDB,
+  deleteStockTransactionFromDB
 } from './utils/supabaseStorage';
 
 const STOCK_STORAGE_KEY = 'autostock_inventory_data_v3_ar';
@@ -590,6 +591,20 @@ export default function App() {
     );
   };
 
+  const handleDeleteTransaction = (txId: string) => {
+    setTransactions((prev) => {
+      const next = prev.filter((t) => t.id !== txId);
+      try {
+        localStorage.setItem(TRANSACTION_STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+    deleteStockTransactionFromDB(txId);
+    showToast('تم حذف العملية', 'تم حذف العملية الفردية من سجل العمليات بنجاح.', 'info');
+  };
+
   const handleForceClearAll = async () => {
     await deleteAllStockItemsFromDB();
     setStockItems([]);
@@ -772,6 +787,7 @@ export default function App() {
         onIncrementStock={handleIncrementStock}
         onDecrementStock={handleDecrementStock}
         onDeleteItem={handleDeleteItem}
+        onDeleteTransaction={handleDeleteTransaction}
         onResetData={() => setIsResetConfirmOpen(true)}
         soundEnabled={soundEnabled}
         onToggleSound={() => setSoundEnabled((prev) => !prev)}
@@ -783,6 +799,7 @@ export default function App() {
         onClose={() => setIsSalesCalendarOpen(false)}
         transactions={transactions}
         stockItems={stockItems}
+        onDeleteTransaction={handleDeleteTransaction}
       />
 
       {/* 5. Add / Edit Item Modal */}

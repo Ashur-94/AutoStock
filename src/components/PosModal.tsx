@@ -14,7 +14,8 @@ import {
   TrendingUp,
   Search,
   ArrowLeftRight,
-  FileText
+  FileText,
+  Trash2
 } from 'lucide-react';
 import { StockTransaction, StockItem } from '../types';
 
@@ -25,6 +26,7 @@ interface PosModalProps {
   stockItems?: StockItem[];
   categories?: string[];
   initialItemToAdd?: StockItem | null;
+  onDeleteTransaction?: (transactionId: string) => void;
   onCompleteSale?: (
     itemsToSell: { item: StockItem; quantity: number }[],
     paymentMethod: 'CASH' | 'CARD' | 'TRANSFER' | 'CREDIT',
@@ -48,6 +50,7 @@ export const PosModal: React.FC<PosModalProps> = ({
   onClose,
   transactions,
   stockItems = [],
+  onDeleteTransaction,
 }) => {
   const today = new Date();
   const [currentYear, setCurrentYear] = useState<number>(today.getFullYear());
@@ -827,21 +830,38 @@ export const PosModal: React.FC<PosModalProps> = ({
                         )}
                       </div>
 
-                      {/* Right price & qty */}
-                      <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 shrink-0">
-                        <div className="text-right sm:text-left">
-                          <span className="text-sm sm:text-base font-black text-emerald-600 font-mono">
-                            {Math.round(price)}
-                          </span>
-                          {sale.unitPrice && qty > 1 && (
-                            <span className="text-[11px] text-slate-400 block font-mono">
-                              ({Math.round(sale.unitPrice)} × {qty})
+                      {/* Right price, qty & delete button */}
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 shrink-0">
+                          <div className="text-right sm:text-left">
+                            <span className="text-sm sm:text-base font-black text-emerald-600 font-mono">
+                              {Math.round(price)}
                             </span>
-                          )}
+                            {sale.unitPrice && qty > 1 && (
+                              <span className="text-[11px] text-slate-400 block font-mono">
+                                ({Math.round(sale.unitPrice)} × {qty})
+                              </span>
+                            )}
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200">
+                            الكمية: {qty}
+                          </span>
                         </div>
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200">
-                          الكمية: {qty}
-                        </span>
+
+                        {onDeleteTransaction && sale.id && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`هل تريد حذف عملية بيع "${sale.itemName}" من السجل؟`)) {
+                                onDeleteTransaction(sale.id);
+                              }
+                            }}
+                            className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                            title="حذف عملية البيع هذه"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
 
                     </div>
