@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Save, 
   Trash2, 
   PackagePlus, 
-  AlertTriangle 
+  AlertTriangle,
+  Tag,
+  Plus,
+  Check
 } from 'lucide-react';
 import { StockItem } from '../types';
 
@@ -24,6 +27,8 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
   itemToEdit,
   onSave,
   onDelete,
+  categories = ['عام'],
+  onAddCategory,
 }) => {
   const [formData, setFormData] = useState<Partial<StockItem>>({
     name: '',
@@ -40,11 +45,21 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
   });
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isAddingNewCat, setIsAddingNewCat] = useState(false);
+  const [newCatInput, setNewCatInput] = useState('');
+  const newCatInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isAddingNewCat && newCatInputRef.current) {
+      newCatInputRef.current.focus();
+    }
+  }, [isAddingNewCat]);
 
   useEffect(() => {
     if (itemToEdit) {
       setFormData({
         ...itemToEdit,
+        category: itemToEdit.category || 'عام',
         costPrice: Math.round(itemToEdit.costPrice || 0),
         sellingPrice: Math.round(itemToEdit.sellingPrice || 0),
       });
@@ -52,7 +67,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
       setFormData({
         name: '',
         partNumber: '',
-        category: 'عام',
+        category: categories.length > 0 ? categories[0] : 'عام',
         quantity: 10,
         minStockThreshold: 5,
         unit: 'قطعة',
@@ -64,9 +79,25 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
       });
     }
     setShowDeleteConfirm(false);
+    setIsAddingNewCat(false);
+    setNewCatInput('');
   }, [itemToEdit, isOpen]);
 
   if (!isOpen) return null;
+
+  const handleCreateNewCategory = () => {
+    const trimmed = newCatInput.trim();
+    if (trimmed) {
+      if (onAddCategory) {
+        onAddCategory(trimmed);
+      }
+      setFormData((prev) => ({ ...prev, category: trimmed }));
+      setNewCatInput('');
+      setIsAddingNewCat(false);
+    } else {
+      setIsAddingNewCat(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,7 +107,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
       id: itemToEdit ? itemToEdit.id : `stk-${Date.now()}`,
       name: formData.name.trim(),
       partNumber: (formData.partNumber || '').toUpperCase().trim() || itemToEdit?.partNumber || `P-${Math.floor(1000 + Math.random() * 9000)}`,
-      category: 'عام',
+      category: formData.category?.trim() || 'عام',
       quantity: Number(formData.quantity) || 0,
       minStockThreshold: Number(formData.minStockThreshold) || 5,
       unit: formData.unit || 'قطعة',
@@ -136,6 +167,87 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white text-right"
               autoFocus
             />
+          </div>
+
+          {/* 2. Category Selection & Custom Category Creator */}
+          <div className="space-y-1.5 p-3 rounded-2xl bg-slate-50 border border-slate-200">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-amber-600" />
+                <span>تصنيف الصنف</span>
+              </label>
+              <span className="text-[11px] text-slate-400 font-mono">
+                المحدد: <strong className="text-slate-800">{formData.category || 'عام'}</strong>
+              </span>
+            </div>
+
+            {/* Category Chips */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              {categories.map((cat) => {
+                const isSelected = (formData.category || 'عام') === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, category: cat }))}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-amber-500 text-slate-950 shadow-xs ring-1 ring-amber-500 font-black'
+                        : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
+
+              {/* Inline Add New Category inside Modal */}
+              {isAddingNewCat ? (
+                <div className="flex items-center gap-1 bg-amber-50 border border-amber-300 rounded-xl px-2 py-0.5 animate-in fade-in duration-150">
+                  <input
+                    ref={newCatInputRef}
+                    type="text"
+                    value={newCatInput}
+                    onChange={(e) => setNewCatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCreateNewCategory();
+                      } else if (e.key === 'Escape') {
+                        setIsAddingNewCat(false);
+                      }
+                    }}
+                    placeholder="تصنيف جديد..."
+                    className="w-24 px-1.5 py-0.5 bg-white border border-amber-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCreateNewCategory}
+                    className="p-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 transition-colors cursor-pointer"
+                    title="حفظ واختيار التصنيف"
+                  >
+                    <Check className="w-3 h-3 stroke-[3]" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingNewCat(false)}
+                    className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsAddingNewCat(true)}
+                  className="px-2.5 py-1 rounded-xl border border-dashed border-amber-500/80 bg-amber-50/70 hover:bg-amber-100 text-amber-900 font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                  title="إنشاء تصنيف جديد"
+                >
+                  <Plus className="w-3 h-3 text-amber-600 stroke-[2.5]" />
+                  <span>+ تصنيف جديد</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* 2. Quantities & Low Stock Alert Threshold */}

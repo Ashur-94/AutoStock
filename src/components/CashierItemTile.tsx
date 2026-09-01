@@ -35,14 +35,21 @@ export const CashierItemTile: React.FC<CashierItemTileProps> = ({
           : 'bg-white border-slate-200 hover:border-amber-400 hover:shadow-md hover:bg-slate-50/50 cursor-pointer active:scale-[0.98]'
       }`}
     >
-      {/* Top row: Item Name */}
+      {/* Top row: Item Name & Category */}
       <div className="w-full">
         <div className="flex items-start justify-between gap-2">
-          <h3 className={`font-bold text-xs sm:text-sm line-clamp-2 leading-snug transition-colors ${
-            isInCart ? 'text-emerald-950 font-black' : 'text-slate-900 group-hover:text-amber-600'
-          }`}>
-            {item.name}
-          </h3>
+          <div className="min-w-0 flex-1">
+            <h3 className={`font-bold text-xs sm:text-sm line-clamp-2 leading-snug transition-colors ${
+              isInCart ? 'text-emerald-950 font-black' : 'text-slate-900 group-hover:text-amber-600'
+            }`}>
+              {item.name}
+            </h3>
+            {item.category && item.category !== 'عام' && (
+              <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded-md bg-amber-50 text-amber-800 border border-amber-200/60 text-[9.5px] font-bold">
+                {item.category}
+              </span>
+            )}
+          </div>
 
           {/* Cart Status Badge */}
           {isInCart && (

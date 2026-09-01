@@ -14,6 +14,7 @@ import { StockItem, StockTransaction, PosCartItem, ParsedInvoiceResult } from '.
 import { Header } from './components/Header';
 import { CashierCart } from './components/CashierCart';
 import { CashierItemTile } from './components/CashierItemTile';
+import { CategoryBar } from './components/CategoryBar';
 import { AdminPanelModal } from './components/AdminPanelModal';
 import { EditItemModal } from './components/EditItemModal';
 import { InvoiceUploadModal } from './components/InvoiceUploadModal';
@@ -37,6 +38,8 @@ import {
 const STOCK_STORAGE_KEY = 'autostock_inventory_data_v3_ar';
 const TRANSACTION_STORAGE_KEY = 'autostock_transactions_data_v2_ar';
 const SOUND_STORAGE_KEY = 'autostock_sound_pref_v1';
+const CATEGORIES_STORAGE_KEY = 'autostock_categories_v2_ar';
+const DEFAULT_CATEGORIES = ['عام', 'فلاتر', 'زيوت وسوائل', 'فرامل', 'كهربائيات'];
 
 export default function App() {
   // 1. Core Stock State - Synchronously initialize from LocalStorage to prevent loss on refresh
@@ -52,6 +55,19 @@ export default function App() {
     }
     return [];
   });
+
+  // 1.1 Categories State
+  const [categories, setCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return DEFAULT_CATEGORIES;
+  });
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   // 2. Transaction Activity Logs - Synchronously initialize from LocalStorage
   const [transactions, setTransactions] = useState<StockTransaction[]>(() => {
@@ -222,18 +238,88 @@ export default function App() {
     }
   }, [soundEnabled]);
 
-  // Filtered Stock Items for the Grid (Pure Full Items Grid with Search)
+  // Synchronize dynamic categories from stockItems whenever stock items change
+  useEffect(() => {
+    if (stockItems.length > 0) {
+      setCategories((prev) => {
+        const set = new Set(prev);
+        let changed = false;
+        stockItems.forEach((it) => {
+          const cat = (it.category || 'عام').trim();
+          if (cat && !set.has(cat)) {
+            set.add(cat);
+            changed = true;
+          }
+        });
+        if (changed) {
+          const next = Array.from(set);
+          try {
+            localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(next));
+          } catch {}
+          return next;
+        }
+        return prev;
+      });
+    }
+  }, [stockItems]);
+
+  const handleAddCategory = (newCatName: string) => {
+    const trimmed = newCatName.trim();
+    if (!trimmed) return;
+    setCategories((prev) => {
+      if (prev.some((c) => c.toLowerCase() === trimmed.toLowerCase())) return prev;
+      const next = [...prev, trimmed];
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setSelectedCategory(trimmed);
+    showToast('تمت إضافة التصنيف', `تم إنشاء تصنيف "${trimmed}" بنجاح.`, 'success');
+  };
+
+  const handleDeleteCategory = (catToDelete: string) => {
+    if (catToDelete === 'عام') return;
+    setCategories((prev) => {
+      const next = prev.filter((c) => c !== catToDelete);
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setStockItems((prev) =>
+      prev.map((item) =>
+        (item.category || 'عام') === catToDelete ? { ...item, category: 'عام' } : item
+      )
+    );
+    if (selectedCategory === catToDelete) {
+      setSelectedCategory('ALL');
+    }
+    showToast('تم حذف التصنيف', `تم حذف تصنيف "${catToDelete}" وتحويل أصنافه لتصنيف عام.`, 'info');
+  };
+
+  // Filtered Stock Items for the Grid (Filter by search query AND active category)
   const filteredItems = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return stockItems;
-    return stockItems.filter(
-      (item) =>
+    return stockItems.filter((item) => {
+      // 1. Search Query Filter
+      const matchesQuery =
+        !q ||
         item.name.toLowerCase().includes(q) ||
         item.partNumber.toLowerCase().includes(q) ||
+        (item.category && item.category.toLowerCase().includes(q)) ||
         (item.location && item.location.toLowerCase().includes(q)) ||
-        (item.supplier && item.supplier.toLowerCase().includes(q))
-    );
-  }, [stockItems, searchQuery]);
+        (item.supplier && item.supplier.toLowerCase().includes(q));
+
+      // 2. Category Filter (All vs Specific Category)
+      const itemCat = (item.category || 'عام').trim().toLowerCase();
+      const matchesCategory =
+        selectedCategory === 'ALL' ||
+        itemCat === selectedCategory.trim().toLowerCase();
+
+      return matchesQuery && matchesCategory;
+    });
+  }, [stockItems, searchQuery, selectedCategory]);
 
   // Cart Metrics
   const cartCount = useMemo(() => cart.reduce((acc, item) => acc + item.quantity, 0), [cart]);
@@ -674,23 +760,49 @@ export default function App() {
         {/* LEFT / CENTER: FULL ITEMS GRID (7 or 8 columns on large screens) */}
         <main className="w-full lg:col-span-7 xl:col-span-8 flex flex-col space-y-2.5 sm:space-y-3 min-w-0">
           
+          {/* Category Filter Bar: (All / الكل) + Custom Categories + (+ Add Category / + إضافة تصنيف) */}
+          <CategoryBar
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
+            onAddCategory={handleAddCategory}
+            onDeleteCategory={handleDeleteCategory}
+            stockItems={stockItems}
+          />
+
           {/* Items Grid */}
           {filteredItems.length === 0 ? (
             <div className="p-8 sm:p-12 text-center rounded-2xl sm:rounded-3xl bg-white border border-slate-200 shadow-sm my-2">
               <Package className="w-10 h-10 sm:w-12 sm:h-12 text-slate-300 mx-auto mb-2 sm:mb-3" />
               <h3 className="text-xs sm:text-sm font-bold text-slate-800">
-                {searchQuery ? `لا توجد نتائج مطابقة لـ "${searchQuery}"` : 'لا توجد أصناف في المخزون حالياً'}
+                {searchQuery
+                  ? `لا توجد نتائج مطابقة لـ "${searchQuery}"`
+                  : selectedCategory !== 'ALL'
+                  ? `لا توجد قطع مضافة في تصنيف "${selectedCategory}" حالياً`
+                  : 'لا توجد أصناف في المخزون حالياً'}
               </h3>
               <p className="text-[11px] sm:text-xs text-slate-500 mt-1 max-w-xs mx-auto">
-                {searchQuery ? 'جرب البحث بكلمات أخرى أو مسح حقل البحث.' : 'يمكنك إضافة أصناف جديدة أو مسح فواتير التوريد من لوحة الإدارة.'}
+                {searchQuery
+                  ? 'جرب البحث بكلمات أخرى أو مسح حقل البحث.'
+                  : selectedCategory !== 'ALL'
+                  ? 'يمكنك إضافة صنف جديد لهذا التصنيف أو اختيار تصنيف آخر.'
+                  : 'يمكنك إضافة أصناف جديدة أو مسح فواتير التوريد من لوحة الإدارة.'}
               </p>
-              <div className="mt-4 flex items-center justify-center gap-2">
+              <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
                     className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
                   >
                     مسح البحث
+                  </button>
+                )}
+                {selectedCategory !== 'ALL' && (
+                  <button
+                    onClick={() => setSelectedCategory('ALL')}
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                  >
+                    عرض كل التصنيفات
                   </button>
                 )}
                 <button
@@ -812,7 +924,8 @@ export default function App() {
         itemToEdit={itemToEdit}
         onSave={handleSaveItem}
         onDelete={handleDeleteItem}
-        categories={['عام']}
+        categories={categories}
+        onAddCategory={handleAddCategory}
       />
 
       {/* 6. AI Invoice Scanner Modal */}

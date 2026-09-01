@@ -256,7 +256,14 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                           return (
                             <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
                               <td className="p-3 font-bold text-slate-900">
-                                {item.name}
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span>{item.name}</span>
+                                  {item.category && item.category !== 'عام' && (
+                                    <span className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200/80 text-[10px] font-bold">
+                                      {item.category}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="p-3">
                                 <div className="flex items-center gap-1.5">
