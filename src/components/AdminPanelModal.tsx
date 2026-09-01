@@ -27,7 +27,12 @@ import {
   Clock,
   ChevronRight,
   ChevronLeft,
-  ChevronDown
+  ChevronDown,
+  Tag,
+  Check,
+  CheckCircle2,
+  FolderPlus,
+  Eraser
 } from 'lucide-react';
 import { StockItem, StockTransaction, ParsedInvoiceResult } from '../types';
 
@@ -36,6 +41,11 @@ interface AdminPanelModalProps {
   onClose: () => void;
   stockItems: StockItem[];
   transactions: StockTransaction[];
+  categories?: string[];
+  onAddCategory?: (category: string) => void;
+  onRenameCategory?: (oldName: string, newName: string) => void;
+  onDeleteCategory?: (category: string) => void;
+  onCleanMockCategories?: () => void;
   onOpenAddItem: (itemToEdit?: StockItem | null) => void;
   onOpenInvoiceUpload?: () => void;
   onOpenSalesCalendar?: () => void;
@@ -48,13 +58,18 @@ interface AdminPanelModalProps {
   onToggleSound: () => void;
 }
 
-type AdminTab = 'INVENTORY' | 'SALES_LOG' | 'SETTINGS';
+type AdminTab = 'INVENTORY' | 'SALES_LOG' | 'CATEGORIES' | 'SETTINGS';
 
 export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   isOpen,
   onClose,
   stockItems,
   transactions,
+  categories = [],
+  onAddCategory,
+  onRenameCategory,
+  onDeleteCategory,
+  onCleanMockCategories,
   onOpenAddItem,
   onOpenInvoiceUpload,
   onOpenSalesCalendar,
@@ -68,6 +83,11 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('INVENTORY');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Category management local state inside modal
+  const [newCatInput, setNewCatInput] = useState('');
+  const [editingCatName, setEditingCatName] = useState<string | null>(null);
+  const [editCatInput, setEditCatInput] = useState('');
   // Filtered items in admin table
   const filteredStock = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -180,6 +200,18 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
           >
             <Receipt className="w-3.5 h-3.5 text-blue-400" />
             <span>سجل العمليات ({transactions.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('CATEGORIES')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+              activeTab === 'CATEGORIES'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+            }`}
+          >
+            <Tag className="w-3.5 h-3.5 text-amber-400" />
+            <span>إدارة التصنيفات ({categories.length})</span>
           </button>
 
           <button
@@ -464,7 +496,211 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
             </div>
           )}
 
-          {/* TAB 3: DATABASE & SETTINGS */}
+          {/* TAB 3: CATEGORIES MANAGEMENT */}
+          {activeTab === 'CATEGORIES' && (
+            <div className="space-y-5 max-w-3xl mx-auto py-2">
+              
+              {/* Header & Add Category Card */}
+              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Tag className="w-4 h-4 text-amber-500" />
+                      <span>إدارة وتخصيص تصنيفات القطع</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      يمكنك إنشاء تصنيفات مخصصة، تعديل مسمياتها، أو حذفها فردياً في أي وقت.
+                    </p>
+                  </div>
+
+                  {onCleanMockCategories && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm('هل ترغب في تنظيف وحذف أي تصنيفات وهمية أو فارغة غير مستخدمة؟')) {
+                          onCleanMockCategories();
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 text-xs font-bold transition-all border border-slate-200 hover:border-rose-200 flex items-center gap-1.5 cursor-pointer"
+                      title="تنظيف كافة التصنيفات الوهمية ومسحها"
+                    >
+                      <Eraser className="w-3.5 h-3.5 text-rose-500" />
+                      <span>تنظيف التصنيفات الوهمية</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Add New Category Input Form */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!newCatInput.trim()) return;
+                    if (onAddCategory) {
+                      onAddCategory(newCatInput.trim());
+                    }
+                    setNewCatInput('');
+                  }}
+                  className="flex items-center gap-2 pt-2 border-t border-slate-100"
+                >
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      placeholder="اكتب اسم تصنيف جديد (مثال: فلاتر، بواجي، زيوت، سيور...)"
+                      value={newCatInput}
+                      onChange={(e) => setNewCatInput(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm focus:outline-none focus:border-amber-500 focus:bg-white transition-all text-right font-medium text-slate-900"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={!newCatInput.trim()}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-xs cursor-pointer shrink-0"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>إضافة تصنيف</span>
+                  </button>
+                </form>
+              </div>
+
+              {/* Categories Table / List */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                <div className="p-3.5 bg-slate-900 text-white font-bold text-xs flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FolderPlus className="w-4 h-4 text-amber-400" />
+                    <span>التصنيفات الحالية في النظام ({categories.length})</span>
+                  </div>
+                  <span className="text-[11px] text-slate-300 font-normal">
+                    {stockItems.filter(i => i.category && i.category.trim() !== '').length} قطعة مصنفة من أصل {stockItems.length}
+                  </span>
+                </div>
+
+                {categories.length === 0 ? (
+                  <div className="p-10 text-center space-y-2">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center mx-auto mb-3">
+                      <Tag className="w-6 h-6" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-800">لا توجد تصنيفات حالياً</p>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                      القائمة فارغة تماماً ولا توجد تصنيفات افتراضية أو وهمية. يمكنك إضافة تصنيفاتك الحقيقية من الحقل أعلاه.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {categories.map((cat, idx) => {
+                      const count = stockItems.filter(
+                        (i) => (i.category || '').trim().toLowerCase() === cat.trim().toLowerCase()
+                      ).length;
+                      const isEditing = editingCatName === cat;
+
+                      return (
+                        <div
+                          key={cat}
+                          className="p-3.5 sm:p-4 flex items-center justify-between gap-3 hover:bg-slate-50/70 transition-colors"
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-500 font-mono text-[11px] font-bold flex items-center justify-center shrink-0">
+                              {idx + 1}
+                            </span>
+
+                            {isEditing ? (
+                              <div className="flex items-center gap-2 flex-1 max-w-md">
+                                <input
+                                  type="text"
+                                  value={editCatInput}
+                                  onChange={(e) => setEditCatInput(e.target.value)}
+                                  className="w-full px-3 py-1 rounded-lg bg-white border-2 border-amber-500 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      if (editCatInput.trim() && onRenameCategory) {
+                                        onRenameCategory(cat, editCatInput.trim());
+                                        setEditingCatName(null);
+                                      }
+                                    } else if (e.key === 'Escape') {
+                                      setEditingCatName(null);
+                                    }
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (editCatInput.trim() && onRenameCategory) {
+                                      onRenameCategory(cat, editCatInput.trim());
+                                      setEditingCatName(null);
+                                    }
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 cursor-pointer shrink-0 shadow-xs"
+                                  title="حفظ التعديل"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>حفظ</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingCatName(null)}
+                                  className="px-2 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs cursor-pointer shrink-0"
+                                  title="إلغاء"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                <span className="font-bold text-slate-900 text-sm">
+                                  {cat}
+                                </span>
+                                <span className="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200/80 text-amber-800 text-[11px] font-bold">
+                                  {count} {count === 1 ? 'قطعة' : 'قطع'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action Buttons */}
+                          {!isEditing && (
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCatName(cat);
+                                  setEditCatInput(cat);
+                                }}
+                                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-200 hover:border-amber-300 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                                title="إعادة تسمية التصنيف"
+                              >
+                                <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+                                <span className="hidden sm:inline">تعديل الاسم</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (confirm(`هل أنت متأكد من حذف تصنيف "${cat}"؟ سيتم إزالة التصنيف من الأصناف المرتبطة به.`)) {
+                                    if (onDeleteCategory) {
+                                      onDeleteCategory(cat);
+                                    }
+                                  }
+                                }}
+                                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 border border-slate-200 hover:border-rose-200 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                                title="حذف هذا التصنيف بشكل فردي"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                <span className="hidden sm:inline">حذف</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB 4: DATABASE & SETTINGS */}
           {activeTab === 'SETTINGS' && (
             <div className="space-y-6 max-w-xl mx-auto py-4">
               

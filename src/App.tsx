@@ -43,6 +43,24 @@ const TRANSACTION_STORAGE_KEY = 'autostock_transactions_data_v2_ar';
 const SOUND_STORAGE_KEY = 'autostock_sound_pref_v1';
 const CATEGORIES_STORAGE_KEY = 'autostock_categories_v2_ar';
 
+const MOCK_CATEGORIES_TO_PURGE = [
+  'زيوت وسوائل',
+  'فرامل ودسكات',
+  'فلاتر وترشيح',
+  'إشعال وكهرباء',
+  'بطاريات',
+  'نظام تعليق وتوجيه',
+  'سيور وخراطيم',
+  'مواد ومستلزمات الورشة',
+  'إطارات وجنوط',
+  'قطع عامة ومسامير',
+  'عام',
+  'Fluids & Oils',
+  'Brakes & Rotors',
+  'Filters',
+  'General Hardware'
+];
+
 export default function App() {
   // 1. Core Stock State - Synchronously initialize from LocalStorage to prevent loss on refresh
   const [stockItems, setStockItems] = useState<StockItem[]>(() => {
@@ -50,7 +68,14 @@ export default function App() {
       const saved = localStorage.getItem(STOCK_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.map((item: StockItem) => {
+            if (item.category && MOCK_CATEGORIES_TO_PURGE.some(m => m.toLowerCase() === item.category!.trim().toLowerCase())) {
+              return { ...item, category: '' };
+            }
+            return item;
+          });
+        }
       }
     } catch (e) {
       console.warn('Could not read stock from localStorage:', e);
@@ -64,7 +89,11 @@ export default function App() {
       const saved = localStorage.getItem(CATEGORIES_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (c: string) => !MOCK_CATEGORIES_TO_PURGE.some((m) => m.toLowerCase() === (c || '').trim().toLowerCase())
+          );
+        }
       }
     } catch {}
     return [];
@@ -176,8 +205,11 @@ export default function App() {
         // Fetch categories from DB
         const dbCategories = await fetchCategoriesFromDB();
         if (dbCategories !== null && dbCategories.length > 0) {
+          const cleanDBCats = dbCategories.filter(
+            c => !MOCK_CATEGORIES_TO_PURGE.some(m => m.toLowerCase() === (c || '').trim().toLowerCase())
+          );
           setCategories((prev) => {
-            const combined = Array.from(new Set([...prev, ...dbCategories]));
+            const combined = Array.from(new Set([...prev, ...cleanDBCats]));
             try {
               localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(combined));
             } catch {}
@@ -260,7 +292,11 @@ export default function App() {
         let changed = false;
         stockItems.forEach((it) => {
           const cat = (it.category || '').trim();
-          if (cat && !set.has(cat)) {
+          if (
+            cat &&
+            !MOCK_CATEGORIES_TO_PURGE.some((m) => m.toLowerCase() === cat.toLowerCase()) &&
+            !set.has(cat)
+          ) {
             set.add(cat);
             changed = true;
           }
@@ -294,6 +330,42 @@ export default function App() {
     showToast('تمت إضافة التصنيف', `تم إنشاء تصنيف "${trimmed}" بنجاح.`, 'success');
   };
 
+  const handleRenameCategory = (oldName: string, newName: string) => {
+    const trimmedNew = newName.trim();
+    if (!trimmedNew || trimmedNew.toLowerCase() === oldName.trim().toLowerCase()) return;
+
+    setCategories((prev) => {
+      const next = prev.map((c) => (c.toLowerCase() === oldName.trim().toLowerCase() ? trimmedNew : c));
+      const deduplicated = Array.from(new Set(next));
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(deduplicated));
+      } catch {}
+      return deduplicated;
+    });
+
+    // Update all stock items with old category
+    setStockItems((prev) =>
+      prev.map((item) => {
+        if ((item.category || '').trim().toLowerCase() === oldName.trim().toLowerCase()) {
+          const updated = { ...item, category: trimmedNew };
+          saveStockItemToDB(updated);
+          return updated;
+        }
+        return item;
+      })
+    );
+
+    // Sync cloud changes
+    deleteCategoryFromDB(oldName);
+    saveCategoryToDB(trimmedNew);
+
+    if (selectedCategory.toLowerCase() === oldName.trim().toLowerCase()) {
+      setSelectedCategory(trimmedNew);
+    }
+
+    showToast('تم تعديل التصنيف', `تم تعديل مسمى التصنيف إلى "${trimmedNew}" بنجاح.`, 'success');
+  };
+
   const handleDeleteCategory = (catToDelete: string) => {
     setCategories((prev) => {
       const next = prev.filter((c) => c !== catToDelete);
@@ -305,14 +377,52 @@ export default function App() {
     // Cloud delete
     deleteCategoryFromDB(catToDelete);
     setStockItems((prev) =>
-      prev.map((item) =>
-        (item.category || '') === catToDelete ? { ...item, category: '' } : item
-      )
+      prev.map((item) => {
+        if ((item.category || '').trim().toLowerCase() === catToDelete.trim().toLowerCase()) {
+          const updated = { ...item, category: '' };
+          saveStockItemToDB(updated);
+          return updated;
+        }
+        return item;
+      })
     );
     if (selectedCategory === catToDelete) {
       setSelectedCategory('ALL');
     }
     showToast('تم حذف التصنيف', `تم حذف تصنيف "${catToDelete}" بنجاح.`, 'info');
+  };
+
+  const handleCleanMockCategories = () => {
+    setCategories((prev) => {
+      const cleaned = prev.filter(
+        (c) => !MOCK_CATEGORIES_TO_PURGE.some((m) => m.toLowerCase() === (c || '').trim().toLowerCase())
+      );
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(cleaned));
+      } catch {}
+      return cleaned;
+    });
+
+    setStockItems((prev) =>
+      prev.map((item) => {
+        if (
+          item.category &&
+          MOCK_CATEGORIES_TO_PURGE.some((m) => m.toLowerCase() === item.category!.trim().toLowerCase())
+        ) {
+          const updated = { ...item, category: '' };
+          saveStockItemToDB(updated);
+          return updated;
+        }
+        return item;
+      })
+    );
+
+    MOCK_CATEGORIES_TO_PURGE.forEach((name) => {
+      deleteCategoryFromDB(name);
+    });
+
+    setSelectedCategory('ALL');
+    showToast('تم تنظيف التصنيفات', 'تم حذف وتصفير كافة التصنيفات الوهمية بنجاح.', 'success');
   };
 
   // Filtered Stock Items for the Grid (Filter by search query AND active category)
@@ -651,7 +761,7 @@ export default function App() {
           id: `stk-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
           partNumber: extracted.partNumber || `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
           name: extracted.name || 'قطعة غيار جديدة',
-          category: 'عام',
+          category: (extracted.category && !MOCK_CATEGORIES_TO_PURGE.includes(extracted.category)) ? extracted.category : '',
           imageUrl: '',
           quantity: extracted.quantity,
           minStockThreshold: 3,
@@ -904,6 +1014,11 @@ export default function App() {
         onClose={() => setIsAdminOpen(false)}
         stockItems={stockItems}
         transactions={transactions}
+        categories={categories}
+        onAddCategory={handleAddCategory}
+        onRenameCategory={handleRenameCategory}
+        onDeleteCategory={handleDeleteCategory}
+        onCleanMockCategories={handleCleanMockCategories}
         onOpenAddItem={(item) => {
           setItemToEdit(item || null);
           setIsEditItemModalOpen(true);

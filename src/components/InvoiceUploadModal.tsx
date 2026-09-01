@@ -538,9 +538,11 @@ export const InvoiceUploadModal: React.FC<InvoiceUploadModalProps> = ({
                             <span className="font-mono font-bold text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded bg-white text-amber-800 border border-slate-300" dir="ltr">
                               {item.partNumber}
                             </span>
-                            <span className="text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
-                              {normalizeCategory(item.category)}
-                            </span>
+                            {item.category && item.category.trim() !== '' && (
+                              <span className="text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
+                                {item.category}
+                              </span>
+                            )}
                           </div>
 
                           <div className="font-bold text-slate-900 text-xs sm:text-sm mt-1 truncate">
