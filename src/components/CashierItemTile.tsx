@@ -28,7 +28,7 @@ export const CashierItemTile: React.FC<CashierItemTileProps> = ({
         }
       }}
       disabled={isOutOfStock}
-      className={`group relative w-full text-right p-3.5 sm:p-4 rounded-2xl border transition-all duration-150 flex flex-col justify-between min-h-[92px] sm:min-h-[105px] select-none ${
+      className={`group relative w-full text-right p-3.5 sm:p-4 rounded-2xl border transition-all duration-150 flex flex-col gap-2 select-none ${
         isOutOfStock
           ? 'bg-slate-100/80 border-slate-200 opacity-60 cursor-not-allowed'
           : isInCart
@@ -45,11 +45,6 @@ export const CashierItemTile: React.FC<CashierItemTileProps> = ({
             }`}>
               {item.name}
             </h3>
-            {item.category && item.category.trim() !== '' && (
-              <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded-md bg-amber-50 text-amber-800 border border-amber-200/60 text-[9.5px] font-bold">
-                {item.category}
-              </span>
-            )}
           </div>
 
           {/* Cart Status Badge */}
@@ -68,7 +63,7 @@ export const CashierItemTile: React.FC<CashierItemTileProps> = ({
       </div>
 
       {/* Bottom row: Price */}
-      <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 w-full">
+      <div className="mt-1 flex items-center justify-between gap-1 w-full">
         <div className="flex items-baseline gap-0.5">
           <span className="text-sm sm:text-base font-black font-mono text-emerald-600" dir="ltr">
             {formatPrice(item.sellingPrice)}
