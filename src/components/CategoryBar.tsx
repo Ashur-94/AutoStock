@@ -116,15 +116,15 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
                 </span>
               </button>
 
-              {/* Optional Delete Category Icon (for custom categories when count is 0 or owner confirms) */}
-              {onDeleteCategory && cat !== 'عام' && (
+              {/* Delete Category Icon */}
+              {onDeleteCategory && (
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (
                       count === 0 ||
-                      confirm(`هل أنت متأكد من حذف تصنيف "${cat}"؟ سيتم تحويل أصنافه لتصنيف "عام".`)
+                      confirm(`هل أنت متأكد من حذف تصنيف "${cat}"؟`)
                     ) {
                       onDeleteCategory(cat);
                     }

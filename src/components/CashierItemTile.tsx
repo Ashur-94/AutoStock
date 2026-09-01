@@ -73,13 +73,9 @@ export const CashierItemTile: React.FC<CashierItemTileProps> = ({
             {Math.round(item.sellingPrice)}
           </span>
         </div>
-        {isInCart ? (
+        {isInCart && (
           <span className="text-[10px] text-emerald-700 font-bold group-hover:text-rose-600 transition-colors">
-            انقر لإلغاء التحديد
-          </span>
-        ) : (
-          <span className="text-[10px] text-slate-400 font-medium">
-            انقر للتحديد
+            انقر للإلغاء
           </span>
         )}
       </div>

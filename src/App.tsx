@@ -279,7 +279,6 @@ export default function App() {
   };
 
   const handleDeleteCategory = (catToDelete: string) => {
-    if (catToDelete === 'عام') return;
     setCategories((prev) => {
       const next = prev.filter((c) => c !== catToDelete);
       try {
@@ -289,13 +288,13 @@ export default function App() {
     });
     setStockItems((prev) =>
       prev.map((item) =>
-        (item.category || 'عام') === catToDelete ? { ...item, category: 'عام' } : item
+        (item.category || '') === catToDelete ? { ...item, category: '' } : item
       )
     );
     if (selectedCategory === catToDelete) {
       setSelectedCategory('ALL');
     }
-    showToast('تم حذف التصنيف', `تم حذف تصنيف "${catToDelete}" وتحويل أصنافه لتصنيف عام.`, 'info');
+    showToast('تم حذف التصنيف', `تم حذف تصنيف "${catToDelete}" بنجاح.`, 'info');
   };
 
   // Filtered Stock Items for the Grid (Filter by search query AND active category)

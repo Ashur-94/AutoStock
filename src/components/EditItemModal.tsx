@@ -59,7 +59,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
     if (itemToEdit) {
       setFormData({
         ...itemToEdit,
-        category: itemToEdit.category || 'عام',
+        category: itemToEdit.category || '',
         costPrice: Math.round(itemToEdit.costPrice || 0),
         sellingPrice: Math.round(itemToEdit.sellingPrice || 0),
       });
@@ -67,7 +67,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
       setFormData({
         name: '',
         partNumber: '',
-        category: categories.length > 0 ? categories[0] : 'عام',
+        category: categories.length > 0 ? categories[0] : '',
         quantity: 10,
         minStockThreshold: 5,
         unit: 'قطعة',
@@ -107,7 +107,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
       id: itemToEdit ? itemToEdit.id : `stk-${Date.now()}`,
       name: formData.name.trim(),
       partNumber: (formData.partNumber || '').toUpperCase().trim() || itemToEdit?.partNumber || `P-${Math.floor(1000 + Math.random() * 9000)}`,
-      category: formData.category?.trim() || 'عام',
+      category: formData.category?.trim() || '',
       quantity: Number(formData.quantity) || 0,
       minStockThreshold: Number(formData.minStockThreshold) || 5,
       unit: formData.unit || 'قطعة',
