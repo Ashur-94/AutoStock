@@ -53,9 +53,6 @@ export const Header: React.FC<HeaderProps> = ({
                 <h1 className="text-sm sm:text-lg font-black tracking-tight text-white truncate">
                   محل دلدار شرفاني
                 </h1>
-                <span className="hidden md:inline-block px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
-                  {stockItems.length} صنف ({totalUnits} قطعة)
-                </span>
               </div>
             </div>
           </div>

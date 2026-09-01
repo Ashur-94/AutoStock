@@ -17,6 +17,7 @@ import {
   FileText,
   Trash2
 } from 'lucide-react';
+import { formatPrice } from '../utils/formatters';
 import { StockTransaction, StockItem } from '../types';
 
 interface PosModalProps {
@@ -524,7 +525,7 @@ export const PosModal: React.FC<PosModalProps> = ({
                       {MONTH_NAMES_AR[currentMonth]} {currentYear}
                     </span>
                     <span className="text-[11px] text-emerald-700 font-bold block">
-                      إيراد الشهر: {Math.round(monthStats.revenue)} ({monthStats.count} مبيعات)
+                      إيراد الشهر: <span dir="ltr">{formatPrice(monthStats.revenue)}</span> ({monthStats.count} مبيعات)
                     </span>
                   </div>
 
@@ -592,8 +593,9 @@ export const PosModal: React.FC<PosModalProps> = ({
                                   ? 'text-emerald-100 bg-emerald-700/70'
                                   : 'text-emerald-800 bg-emerald-200/60'
                               }`}
+                              dir="ltr"
                             >
-                              {Math.round(day.totalRevenue)}
+                              {formatPrice(day.totalRevenue)}
                             </span>
                           </div>
                         )}

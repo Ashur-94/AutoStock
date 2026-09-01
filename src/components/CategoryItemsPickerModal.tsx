@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Filter
 } from 'lucide-react';
+import { formatPrice } from '../utils/formatters';
 import { StockItem } from '../types';
 
 interface CategoryItemsPickerModalProps {
@@ -304,7 +305,7 @@ export const CategoryItemsPickerModal: React.FC<CategoryItemsPickerModalProps> =
 
                       <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500">
                         <span>المتوفر: <strong className="text-slate-800">{item.quantity}</strong> {item.unit || 'قطعة'}</span>
-                        <span>السعر: <strong className="text-slate-800">{Math.round(item.sellingPrice)} ر.س</strong></span>
+                        <span>السعر: <strong className="text-slate-800 font-mono" dir="ltr">{formatPrice(item.sellingPrice)}</strong></span>
                         {item.location && <span>الموقع: {item.location}</span>}
                       </div>
                     </div>

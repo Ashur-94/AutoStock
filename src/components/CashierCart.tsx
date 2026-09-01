@@ -12,6 +12,7 @@ import {
   X,
   AlertCircle
 } from 'lucide-react';
+import { formatPrice } from '../utils/formatters';
 import { StockItem, PosCartItem } from '../types';
 
 interface CashierCartProps {
@@ -98,11 +99,11 @@ export const CashierCart: React.FC<CashierCartProps> = ({
                 <div>
                   <span className="font-bold text-slate-900 block">{it.itemName}</span>
                   <span className="text-[11px] text-slate-400">
-                    {it.quantity} × {Math.round(it.unitPrice)}
+                    {it.quantity} × <span dir="ltr">{formatPrice(it.unitPrice)}</span>
                   </span>
                 </div>
-                <span className="font-mono font-bold text-emerald-600">
-                  {Math.round(it.totalPrice)}
+                <span className="font-mono font-bold text-emerald-600" dir="ltr">
+                  {formatPrice(it.totalPrice)}
                 </span>
               </div>
             ))}
@@ -110,8 +111,8 @@ export const CashierCart: React.FC<CashierCartProps> = ({
 
           <div className="pt-3 border-t border-slate-200 flex justify-between items-center text-sm font-bold">
             <span className="text-slate-900">الإجمالي المدفوع:</span>
-            <span className="text-base font-black text-emerald-600 font-mono">
-              {Math.round(lastCompletedReceipt.totalAmount)}
+            <span className="text-base font-black text-emerald-600 font-mono" dir="ltr">
+              {formatPrice(lastCompletedReceipt.totalAmount)}
             </span>
           </div>
         </div>
@@ -233,16 +234,17 @@ export const CashierCart: React.FC<CashierCartProps> = ({
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] sm:text-[11px] font-medium text-slate-500">السعر:</span>
                     <div className="relative flex items-center">
+                      <span className="text-slate-400 text-xs font-mono font-bold mr-1">$</span>
                       <input
                         type="number"
-                        step="1"
+                        step="0.01"
                         min="0"
-                        value={cartItem.unitPrice === 0 ? '' : Math.round(cartItem.unitPrice)}
+                        value={cartItem.unitPrice === 0 ? '' : cartItem.unitPrice}
                         onChange={(e) => {
-                          const val = parseInt(e.target.value, 10);
+                          const val = parseFloat(e.target.value);
                           onUpdatePrice(cartItem.item.id, isNaN(val) ? 0 : Math.max(0, val));
                         }}
-                        className={`w-16 sm:w-20 px-2 py-0.5 sm:py-1 rounded-lg border text-[11px] sm:text-xs font-bold font-mono text-center focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                        className={`w-18 sm:w-22 px-2 py-0.5 sm:py-1 rounded-lg border text-[11px] sm:text-xs font-bold font-mono text-center focus:outline-none focus:ring-1 focus:ring-amber-500 ${
                           isPriceModified
                             ? 'bg-amber-50 border-amber-400 text-amber-900'
                             : 'bg-white border-slate-300 text-slate-900'
@@ -252,9 +254,9 @@ export const CashierCart: React.FC<CashierCartProps> = ({
                     </div>
                     {isPriceModified && (
                       <button
-                        onClick={() => onUpdatePrice(cartItem.item.id, Math.round(originalPrice))}
+                        onClick={() => onUpdatePrice(cartItem.item.id, originalPrice)}
                         className="text-[9px] sm:text-[10px] text-amber-700 hover:underline cursor-pointer"
-                        title={`إعادة للسعر الأصلي (${Math.round(originalPrice)})`}
+                        title={`إعادة للسعر الأصلي (${formatPrice(originalPrice)})`}
                       >
                         إلغاء
                       </button>
@@ -293,8 +295,8 @@ export const CashierCart: React.FC<CashierCartProps> = ({
                     </div>
 
                     {/* LINE TOTAL */}
-                    <div className="text-left font-mono font-bold text-xs sm:text-sm text-emerald-600 shrink-0">
-                      {Math.round(cartItem.totalPrice)}
+                    <div className="text-left font-mono font-bold text-xs sm:text-sm text-emerald-600 shrink-0" dir="ltr">
+                      {formatPrice(cartItem.totalPrice)}
                     </div>
                   </div>
 
@@ -319,8 +321,8 @@ export const CashierCart: React.FC<CashierCartProps> = ({
           <div className="flex items-center justify-between gap-3">
             <div>
               <span className="text-[10px] sm:text-xs text-slate-500 block">الإجمالي:</span>
-              <span className="text-lg sm:text-xl font-black text-emerald-600 font-mono">
-                {Math.round(grandTotal)}
+              <span className="text-lg sm:text-xl font-black text-emerald-600 font-mono" dir="ltr">
+                {formatPrice(grandTotal)}
               </span>
             </div>
 
@@ -330,7 +332,7 @@ export const CashierCart: React.FC<CashierCartProps> = ({
               className="flex-1 max-w-[220px] py-2.5 sm:py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs sm:text-sm font-black flex items-center justify-center gap-1.5 sm:gap-2 transition-all cursor-pointer shadow-md shadow-emerald-600/30"
             >
               <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>إتمام البيع ({Math.round(grandTotal)})</span>
+              <span>إتمام البيع (<span dir="ltr">{formatPrice(grandTotal)}</span>)</span>
             </button>
           </div>
         </div>

@@ -11,6 +11,7 @@ import {
   CheckCircle2, 
   AlertTriangle 
 } from 'lucide-react';
+import { formatPrice } from '../utils/formatters';
 import { StockItem } from '../types';
 
 interface QuickSellModalProps {
@@ -57,7 +58,7 @@ export const QuickSellModal: React.FC<QuickSellModalProps> = ({
 
   const isOutOfStock = item.quantity <= 0;
   const maxAvailable = item.quantity;
-  const totalAmount = Math.round(quantity * item.sellingPrice);
+  const totalAmount = quantity * item.sellingPrice;
 
   const handleIncrement = () => {
     if (quantity < maxAvailable) {
@@ -135,8 +136,8 @@ export const QuickSellModal: React.FC<QuickSellModalProps> = ({
                 </span>
               </div>
             </div>
-            <div className="text-left font-mono font-black text-xl text-emerald-600 shrink-0">
-              {Math.round(item.sellingPrice)}
+            <div className="text-left font-mono font-black text-xl text-emerald-600 shrink-0" dir="ltr">
+              {formatPrice(item.sellingPrice)}
             </div>
           </div>
 
@@ -236,17 +237,17 @@ export const QuickSellModal: React.FC<QuickSellModalProps> = ({
                 </div>
               </div>
 
-              {/* Total Calculation Display (No points or dots) */}
+              {/* Total Calculation Display */}
               <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
                 <div>
                   <span className="text-[11px] text-emerald-700 font-semibold block">المبلغ المطلوب:</span>
                   <span className="text-xs text-emerald-600">
-                    {quantity} × {Math.round(item.sellingPrice)}
+                    {quantity} × <span dir="ltr">{formatPrice(item.sellingPrice)}</span>
                   </span>
                 </div>
                 <div className="text-left" dir="ltr">
                   <span className="font-mono text-2xl font-black text-emerald-800">
-                    {totalAmount}
+                    {formatPrice(totalAmount)}
                   </span>
                 </div>
               </div>

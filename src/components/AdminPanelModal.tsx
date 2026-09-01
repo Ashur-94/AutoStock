@@ -36,6 +36,7 @@ import {
   Boxes,
   PackageCheck
 } from 'lucide-react';
+import { formatPrice } from '../utils/formatters';
 import { StockItem, StockTransaction, ParsedInvoiceResult } from '../types';
 
 interface AdminPanelModalProps {
@@ -328,17 +329,17 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                   </button>
                                 </div>
                               </td>
-                              <td className="p-3 font-mono text-slate-600">
-                                {Math.round(item.costPrice)}
+                              <td className="p-3 font-mono text-slate-600" dir="ltr">
+                                {formatPrice(item.costPrice)}
                               </td>
-                              <td className="p-3 font-mono font-bold text-slate-800">
-                                {Math.round(totalCost)}
+                              <td className="p-3 font-mono font-bold text-slate-800" dir="ltr">
+                                {formatPrice(totalCost)}
                                 <span className="text-[10px] text-slate-400 font-normal block">
-                                  ({item.quantity} × {Math.round(item.costPrice || 0)})
+                                  ({item.quantity} × <span dir="ltr">{formatPrice(item.costPrice || 0)}</span>)
                                 </span>
                               </td>
-                              <td className="p-3 font-mono font-bold text-emerald-600">
-                                {Math.round(item.sellingPrice)}
+                              <td className="p-3 font-mono font-bold text-emerald-600" dir="ltr">
+                                {formatPrice(item.sellingPrice)}
                               </td>
                               <td className="p-3">
                                 <div className="flex items-center justify-center gap-1">
@@ -381,16 +382,16 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 text-xs font-mono">
                   <div className="bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
                     <span className="text-[10px] text-emerald-700 block font-sans font-bold">إجمالي الإيراد</span>
-                    <span className="text-sm font-bold text-emerald-800">{Math.round(totalSalesRevenue)}</span>
+                    <span className="text-sm font-bold text-emerald-800" dir="ltr">{formatPrice(totalSalesRevenue)}</span>
                   </div>
                   <div className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
                     <span className="text-[10px] text-slate-500 block font-sans font-bold">إجمالي التكلفة</span>
-                    <span className="text-sm font-bold text-slate-800">{Math.round(totalSalesCost)}</span>
+                    <span className="text-sm font-bold text-slate-800" dir="ltr">{formatPrice(totalSalesCost)}</span>
                   </div>
                   <div className="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
                     <span className="text-[10px] text-amber-700 block font-sans font-bold">صافي الأرباح</span>
-                    <span className={`text-sm font-bold ${totalNetProfit >= 0 ? 'text-amber-900' : 'text-rose-600'}`}>
-                      {totalNetProfit >= 0 ? `+${Math.round(totalNetProfit)}` : Math.round(totalNetProfit)}
+                    <span className={`text-sm font-bold ${totalNetProfit >= 0 ? 'text-amber-900' : 'text-rose-600'}`} dir="ltr">
+                      {totalNetProfit >= 0 ? `+${formatPrice(totalNetProfit)}` : formatPrice(totalNetProfit)}
                     </span>
                   </div>
                 </div>
@@ -452,14 +453,14 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                           <div className="text-left font-mono shrink-0 flex sm:flex-col items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
                             {isSale ? (
                               <>
-                                <div className="text-sm font-bold text-emerald-600">
-                                  +{Math.round(saleTotal)}
+                                <div className="text-sm font-bold text-emerald-600" dir="ltr">
+                                  +{formatPrice(saleTotal)}
                                 </div>
                                 <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
-                                  <span>التكلفة: <strong className="text-slate-700 font-bold">{Math.round(totalCost)}</strong></span>
+                                  <span>التكلفة: <strong className="text-slate-700 font-bold" dir="ltr">{formatPrice(totalCost)}</strong></span>
                                   <span>•</span>
-                                  <span className={profit >= 0 ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}>
-                                    الربح: {profit >= 0 ? `+${Math.round(profit)}` : Math.round(profit)}
+                                  <span className={profit >= 0 ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'} dir="ltr">
+                                    الربح: {profit >= 0 ? `+${formatPrice(profit)}` : formatPrice(profit)}
                                   </span>
                                 </div>
                               </>
@@ -470,7 +471,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                 </div>
                                 {totalCost > 0 && (
                                   <div className="text-[11px] text-slate-500 mt-0.5">
-                                    تكلفة التوريد: <strong className="text-slate-700 font-bold">{Math.round(totalCost)}</strong>
+                                    تكلفة التوريد: <strong className="text-slate-700 font-bold" dir="ltr">{formatPrice(totalCost)}</strong>
                                   </div>
                                 )}
                               </>
@@ -733,11 +734,11 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 </div>
                 <div className="flex justify-between text-slate-600 py-1 border-b border-slate-100">
                   <span>القيمة بسعر البيع:</span>
-                  <span className="font-bold font-mono text-emerald-600">{Math.round(totalStockValue)}</span>
+                  <span className="font-bold font-mono text-emerald-600" dir="ltr">{formatPrice(totalStockValue)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600 py-1">
                   <span>القيمة بسعر التكلفة:</span>
-                  <span className="font-bold font-mono text-slate-800">{Math.round(totalStockCost)}</span>
+                  <span className="font-bold font-mono text-slate-800" dir="ltr">{formatPrice(totalStockCost)}</span>
                 </div>
               </div>
 

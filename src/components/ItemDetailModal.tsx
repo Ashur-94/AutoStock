@@ -13,6 +13,7 @@ import {
   FileText,
   ShoppingCart
 } from 'lucide-react';
+import { formatPrice } from '../utils/formatters';
 import { StockItem } from '../types';
 
 interface ItemDetailModalProps {
@@ -139,24 +140,24 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                 <span className="text-xs text-slate-500 font-semibold block mb-0.5">سعر البيع</span>
                 <span className="text-[11px] text-slate-400">السعر المعتمد في الفواتير</span>
               </div>
-              <span className="font-mono text-2xl font-black text-emerald-600">
-                {Math.round(item.sellingPrice)}
+              <span className="font-mono text-2xl font-black text-emerald-600" dir="ltr">
+                {formatPrice(item.sellingPrice)}
               </span>
             </div>
 
             <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
               <div>
                 <span className="text-slate-600 font-bold block">سعر التكلفة للقطعة</span>
-                <span className="text-[11px] text-slate-400 font-mono">
-                  {Math.round(item.costPrice || 0)}
+                <span className="text-[11px] text-slate-400 font-mono" dir="ltr">
+                  {formatPrice(item.costPrice || 0)}
                 </span>
               </div>
               <div className="text-left font-mono">
                 <span className="text-slate-600 font-bold block">إجمالي التكلفة بالمخزن</span>
-                <span className="text-sm font-black text-slate-900">
-                  {Math.round((item.costPrice || 0) * item.quantity)}
+                <span className="text-sm font-black text-slate-900" dir="ltr">
+                  {formatPrice((item.costPrice || 0) * item.quantity)}
                   <span className="text-[10px] text-slate-400 font-normal mr-1">
-                    ({item.quantity} × {Math.round(item.costPrice || 0)})
+                    ({item.quantity} × <span dir="ltr">{formatPrice(item.costPrice || 0)}</span>)
                   </span>
                 </span>
               </div>

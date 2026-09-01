@@ -1,5 +1,6 @@
 import React from 'react';
 import { Check, X } from 'lucide-react';
+import { formatPrice } from '../utils/formatters';
 import { StockItem } from '../types';
 
 interface CashierItemTileProps {
@@ -66,11 +67,11 @@ export const CashierItemTile: React.FC<CashierItemTileProps> = ({
         </div>
       </div>
 
-      {/* Bottom row: Price (No points or dots) */}
+      {/* Bottom row: Price */}
       <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 w-full">
         <div className="flex items-baseline gap-0.5">
-          <span className="text-sm sm:text-base font-black font-mono text-emerald-600">
-            {Math.round(item.sellingPrice)}
+          <span className="text-sm sm:text-base font-black font-mono text-emerald-600" dir="ltr">
+            {formatPrice(item.sellingPrice)}
           </span>
         </div>
         {isInCart && (
