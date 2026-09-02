@@ -44,6 +44,32 @@ const TRANSACTION_STORAGE_KEY = 'autostock_transactions_data_v2_ar';
 const SOUND_STORAGE_KEY = 'autostock_sound_pref_v1';
 const CATEGORIES_STORAGE_KEY = 'autostock_categories_v2_ar';
 
+const MOCK_ITEMS_TO_PURGE = [
+  'stk-1788123879402',
+  'stk-1788123996542',
+  'stk-1788187519221',
+  'stk-1788188103808',
+  'ههههه هيزار',
+  'تقنثم2خخف9 حف',
+  'dgdgdgdgdg',
+  'Hassan',
+  'ههههااااااا',
+  'نبخ2حبم',
+  'P-1133',
+  'P-6466'
+];
+
+export const isPurgedItem = (item: { id?: string; name?: string; partNumber?: string; part_number?: string } | null | undefined): boolean => {
+  if (!item) return false;
+  const id = (item.id || '').trim().toLowerCase();
+  const name = (item.name || '').trim().toLowerCase();
+  const partNo = (item.partNumber || item.part_number || '').trim().toLowerCase();
+  return MOCK_ITEMS_TO_PURGE.some((p) => {
+    const cleanP = p.trim().toLowerCase();
+    return id === cleanP || name === cleanP || partNo === cleanP;
+  });
+};
+
 const MOCK_CATEGORIES_TO_PURGE = [
   'زيوت وسوائل',
   'فرامل ودسكات',
@@ -70,12 +96,14 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          return parsed.map((item: StockItem) => {
-            if (item.category && MOCK_CATEGORIES_TO_PURGE.some(m => m.toLowerCase() === item.category!.trim().toLowerCase())) {
-              return { ...item, category: '' };
-            }
-            return item;
-          });
+          return parsed
+            .filter((item: StockItem) => !isPurgedItem(item))
+            .map((item: StockItem) => {
+              if (item.category && MOCK_CATEGORIES_TO_PURGE.some(m => m.toLowerCase() === item.category!.trim().toLowerCase())) {
+                return { ...item, category: '' };
+              }
+              return item;
+            });
         }
       }
     } catch (e) {
@@ -165,27 +193,36 @@ export default function App() {
       try {
         const dbItems = await fetchStockItemsFromDB();
         if (dbItems !== null && dbItems.length > 0) {
-          const mapped = dbItems.map((item: any) => ({
-            id: item.id,
-            partNumber: item.part_number,
-            name: item.name,
-            category: item.category || '',
-            imageUrl: item.image_url || '',
-            quantity: item.quantity,
-            minStockThreshold: item.min_stock_threshold || 3,
-            unit: item.unit || 'قطعة',
-            costPrice: Number(item.cost_price || 0),
-            sellingPrice: Number(item.selling_price || 0),
-            location: item.location || '',
-            supplier: item.supplier || '',
-            lastUpdated: item.last_updated || new Date().toISOString(),
-            notes: item.notes || '',
-            createdAt: item.created_at,
-          })).sort((a: any, b: any) => {
-            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            return timeA - timeB;
+          // Identify any purged items in DB and purge them immediately
+          dbItems.forEach((item: any) => {
+            if (isPurgedItem(item)) {
+              deleteStockItemFromDB(item.id);
+            }
           });
+
+          const mapped = dbItems
+            .filter((item: any) => !isPurgedItem(item))
+            .map((item: any) => ({
+              id: item.id,
+              partNumber: item.part_number,
+              name: item.name,
+              category: item.category || '',
+              imageUrl: item.image_url || '',
+              quantity: item.quantity,
+              minStockThreshold: item.min_stock_threshold || 3,
+              unit: item.unit || 'قطعة',
+              costPrice: Number(item.cost_price || 0),
+              sellingPrice: Number(item.selling_price || 0),
+              location: item.location || '',
+              supplier: item.supplier || '',
+              lastUpdated: item.last_updated || new Date().toISOString(),
+              notes: item.notes || '',
+              createdAt: item.created_at,
+            })).sort((a: any, b: any) => {
+              const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+              const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+              return timeA - timeB;
+            });
           setStockItems(mapped);
           try {
             localStorage.setItem(STOCK_STORAGE_KEY, JSON.stringify(mapped));
@@ -197,8 +234,9 @@ export default function App() {
             if (localSaved) {
               const parsed = JSON.parse(localSaved);
               if (Array.isArray(parsed) && parsed.length > 0) {
-                setStockItems(parsed);
-                parsed.forEach((item: any) => {
+                const cleanLocal = parsed.filter((item: any) => !isPurgedItem(item));
+                setStockItems(cleanLocal);
+                cleanLocal.forEach((item: any) => {
                   saveStockItemToDB(item);
                 });
               }
